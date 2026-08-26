@@ -4,6 +4,8 @@ Guide de lecture de *Proximal Policy Optimization Algorithms* (arXiv:1707.06347)
 
 À lire avec le PDF à côté. Les numéros d'équation sont ceux du papier.
 
+> **Prérequis mathématiques** : la [fiche de révision sur le gradient de politique](fiche-policy-gradient.md) démontre tout ce que le papier suppose acquis — l'identité du score, le lemme de la baseline, l'astuce de causalité, GAE, le gradient naturel et TRPO. Le papier PPO ne redémontre rien de tout cela ; §2.1 et §2.2 y renvoient en trois lignes chacune.
+
 ---
 
 ## Ordre de lecture conseillé

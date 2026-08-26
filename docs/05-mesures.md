@@ -273,3 +273,71 @@ Puis, pour régénérer tous les tableaux de la §5.2 :
 ```
 
 **Les 30 logs bruts de ce sweep sont versionnés** sous `benchmarks/logs/PILOT_*.jsonl` : les chiffres du rapport sont recalculables sans relancer 13 heures de runs, et vérifiables ligne à ligne.
+
+---
+
+## 7. Conclusion — l'implémentation est-elle satisfaisante ?
+
+### Le code est fidèle. La configuration par défaut ne l'est pas.
+
+Il faut séparer deux questions que la formulation « est-ce que RLlib implémente bien PPO ? » mélange.
+
+**L'objectif clippé est correct, ligne à ligne.** L'éq. (7) du papier se retrouve telle quelle dans `ppo_torch_learner.py`, y compris le `min` et le sens des deux branches ([02 §3](02-ppo-papier-vs-rllib.md)). La récursion GAE de l'éq. (16) est correcte, y compris la coupure aux frontières d'épisodes ([03 §3](03-gae-papier-vs-rllib.md)). Rien de ce qui a été mesuré ne remet cela en cause. **Ce n'est pas un bug d'implémentation.**
+
+**Les valeurs par défaut, elles, coûtent un facteur 7.** Sur les trois environnements MuJoCo testés, la config de la Table 3 du papier bat `PPOConfig()` nu sur **les neuf runs**, sans un seul chevauchement : ×7,4 sur HalfCheetah, ×4,2 sur Walker2d, ×3,5 sur Hopper. Et pas au prix du temps de calcul — `P` est aussi **2× plus rapide** en temps mur et demande **3,3× moins d'échantillons**.
+
+> **En clair** : personne n'a écrit PPO de travers. Quelqu'un a laissé les réglages génériques d'`AlgorithmConfig` là où PPO avait besoin des siens, et le résultat par défaut est un algorithme qui apprend sept fois moins bien que ce que le même code sait faire.
+
+### Oui, on peut faire nettement mieux, et le classement est mesuré
+
+Par ordre d'effet décroissant sur HalfCheetah, chaque levier testé **isolément** :
+
+| levier | correction | effet mesuré | pourquoi |
+|---|---|---|---|
+| `lambda_` | `1.0` → `0.95` | **×4,0** | à λ=1 GAE dégénère en Monte-Carlo — l'estimateur que le papier GAE remplace ([03 §4.1](03-gae-papier-vs-rllib.md)) |
+| `use_kl_loss` | `True` → `False` | **×2,4** | RLlib cumule pénalité KL **et** clipping ; le papier les présente comme deux alternatives ([02 §4.1](02-ppo-papier-vs-rllib.md)) |
+| `clip_param` | `0.3` → `0.2` | aucun bénéfice isolé | le réglage du papier ne se transporte pas hors de sa config d'origine ([02 §4.5](02-ppo-papier-vs-rllib.md)) |
+| `vf_clip_param` | `10` → `inf` | aucun effet isolé | écrête pourtant 96 à 99,8 % du gradient du critique ([02 §4.3](02-ppo-papier-vs-rllib.md)) |
+
+**Les deux premiers sont le vrai gisement.** Ce sont deux lignes.
+
+### La config recommandée
+
+```python
+config = (
+    PPOConfig()
+    .training(
+        lambda_=0.95,          # levier n°1 : x4,0 a lui seul
+        use_kl_loss=False,     # levier n°2 : x2,4 a lui seul
+        kl_coeff=0.0,
+        clip_param=0.2,
+        lr=3e-4,               # avec num_epochs=10 : voir ci-dessous
+        num_epochs=10,
+        minibatch_size=64,
+        train_batch_size_per_learner=2048,
+        vf_clip_param=float("inf"),
+        entropy_coeff=0.0,
+    )
+    .rl_module(model_config=DefaultModelConfig(
+        fcnet_hiddens=[64, 64], fcnet_activation="tanh",
+        vf_share_layers=False, free_log_std=True,
+    ))
+    .env_runners(env_to_module_connector=lambda *a, **k: MeanStdFilter())
+)
+```
+
+C'est le bras `P`, celui qui donne le ×7,4. Le `MeanStdFilter` sur les observations n'est pas dans le papier mais était **actif sur tous les bras**, référence comprise : ce n'est pas lui qui produit l'écart.
+
+**Le couple `lr` / `num_epochs` mérite une note.** Les défauts RLlib (`lr=5e-5`, `num_epochs=30`) font **937 pas de gradient par itération** contre 320 pour le papier — trois fois le calcul pour chaque échantillon collecté, ce qui explique à soi seul l'écart de débit (190 contre 380 pas/s, [§4](#4-conditions-matérielles)). Ces deux réglages vont ensemble : baisser `num_epochs` sans monter `lr` sous-entraînerait.
+
+### Ce qui reste non tranché
+
+**La décomposition du ×7,4 est incomplète.** L'ablation n'a isolé que quatre champs. `P` change aussi `lr`, `num_epochs`, `minibatch_size`, la taille du batch et le réseau ([64,64] tanh + `free_log_std` contre [256,256] tanh + σ dépendant de l'état). **Impossible de dire quelle part du gain vient de l'optimisation ou de l'architecture** — il faudrait quatre bras de plus. Ce qui est certain : les leviers ne sont pas additifs, puisque `P` (×7,4) dépasse le meilleur levier isolé (×4,0).
+
+**Le classement vaut à 300 000 pas.** Aucun bras n'a convergé et la courbe de `D` monte encore à l'arrêt. Un budget de 1 M pas — celui du papier — pourrait resserrer l'écart, sans qu'on sache de combien.
+
+**Un seul environnement porte l'ablation.** Le ratio d'écrêtage varie d'un facteur 26 entre HalfCheetah (24) et Hopper (623) : le classement des leviers n'est pas garanti transférable, en particulier vers les environnements à récompenses de faible amplitude où `vf_clip_param=10` ne mord pas du tout.
+
+### La réponse courte
+
+**L'implémentation est bonne, les défauts sont mauvais, et deux lignes récupèrent l'essentiel.** Le piège n'est pas dans le code de RLlib mais dans le fait que `PPOConfig()` a l'air d'être « PPO » alors que c'est PPO plus une pénalité KL, moins GAE, avec un critique en grande partie écrêté. Rien dans la documentation ni dans les logs ne le signale — sur le new API stack, même l'avertissement historique sur `vf_clip_param` a disparu ([02 §4.3](02-ppo-papier-vs-rllib.md)).
