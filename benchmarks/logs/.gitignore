@@ -1,2 +1,6 @@
-# les logs de run sont versionnes : ce sont les donnees du rapport
-!*.jsonl
+# Les logs bruts ne sont PAS versionnes : 45 Mo pour 323 colonnes par ligne,
+# dont 16 sont utilisees. C'est ../results/runs.csv (614 Ko) qui porte les
+# donnees du rapport ; export_csv.py fait la conversion, et
+# `analyze.py --from-logs` relit ces JSONL si vous relancez le sweep.
+*.jsonl
+*.out

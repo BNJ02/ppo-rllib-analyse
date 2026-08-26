@@ -7,7 +7,9 @@ sota/
 __pycache__/
 .venv/
 benchmarks/.venv/
-benchmarks/logs/SMOKE_*.jsonl
-benchmarks/logs/OMP*_*.jsonl
-benchmarks/logs/GPU_*.jsonl
+# logs bruts : 45 Mo pour 323 colonnes dont 16 utiles. C'est
+# benchmarks/results/runs.csv (614 Ko) qui est versionne -- il permet de
+# recalculer chaque chiffre du rapport. export_csv.py fait la conversion.
+benchmarks/logs/*.jsonl
+benchmarks/logs/*.out
 __pycache__/

@@ -1,6 +1,11 @@
-"""Analyse des logs de sweep : tableaux prets a coller dans docs/05-mesures.md.
+"""Analyse des resultats de sweep : tableaux prets a coller dans docs/05-mesures.md.
 
-    .venv/bin/python analyze.py [--run-id PILOT] [--threshold 500]
+    .venv/bin/python analyze.py [--threshold 100]          # depuis results/runs.csv
+    .venv/bin/python analyze.py --from-logs --run-id PILOT # depuis les JSONL bruts
+
+Source par defaut : `results/runs.csv`, versionne, 614 Ko. Les JSONL bruts
+(45 Mo, 323 colonnes dont 16 utiles) restent locaux et ignores par git ;
+`export_csv.py` fait la conversion. Les deux chemins donnent les memes chiffres.
 
 Volontairement sans pandas ni matplotlib : ils ne sont pas installes sur le
 Jetson (meme choix que marl-rllib-gpu-bench, ou l'analyse graphique se fait
@@ -14,13 +19,16 @@ n'est pas suppose.
 from __future__ import annotations
 
 import argparse
+import csv
 import json
 import math
 import statistics as st
 from collections import defaultdict
 from pathlib import Path
 
-LOGS = Path(__file__).resolve().parent / "logs"
+BASE = Path(__file__).resolve().parent
+LOGS = BASE / "logs"
+CSV = BASE / "results" / "runs.csv"
 
 K_STEPS = "env_steps_sampled"
 K_RETURN = "env_runners/episode_return_mean"
@@ -34,7 +42,8 @@ K_SPS = "throughput_sps_measured"
 RANDOM_RETURN = {"HalfCheetah-v5": -270.7, "Hopper-v5": 11.1, "Walker2d-v5": -4.9}
 
 
-def load(run_id: str | None) -> dict[tuple[str, str, int], list[dict]]:
+def load_logs(run_id: str | None) -> dict[tuple[str, str, int], list[dict]]:
+    """Depuis les JSONL bruts. Ne marche que sur la machine qui a lance le sweep."""
     runs: dict[tuple[str, str, int], list[dict]] = defaultdict(list)
     pattern = f"{run_id}_*.jsonl" if run_id else "*.jsonl"
     for path in sorted(LOGS.glob(pattern)):
@@ -44,6 +53,27 @@ def load(run_id: str | None) -> dict[tuple[str, str, int], list[dict]]:
         r0 = rows[0]
         key = (r0["bench_config/env"], r0["bench_config/name"], r0["seed"])
         runs[key] = rows
+    return runs
+
+
+def load_csv(path: Path) -> dict[tuple[str, str, int], list[dict]]:
+    """Depuis results/runs.csv. C'est la source versionnee, donc celle qu'un
+    lecteur du depot peut relire sans avoir relance 13 h de calcul."""
+    runs: dict[tuple[str, str, int], list[dict]] = defaultdict(list)
+    with open(path, newline="") as fh:
+        for row in csv.DictReader(fh):
+            rec: dict = {}
+            for k, v in row.items():
+                if k in ("env", "arm"):
+                    continue
+                if v == "":
+                    continue
+                # int la ou le JSONL en avait, float sinon : `steps_to_threshold`
+                # renvoie ces valeurs telles quelles et elles sont affichees.
+                rec[k] = int(v) if k in ("seed", "iter", "env_steps_sampled") else float(v)
+            runs[(row["env"], row["arm"], int(row["seed"]))].append(rec)
+    for rows in runs.values():
+        rows.sort(key=lambda r: r["iter"])
     return runs
 
 
@@ -88,15 +118,26 @@ def agg(vals: list[float]) -> str:
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--run-id", default=None)
+    ap.add_argument("--from-logs", action="store_true",
+                    help="lire les JSONL bruts au lieu de results/runs.csv")
+    ap.add_argument("--csv", type=Path, default=CSV)
     ap.add_argument("--threshold", type=float, default=None,
                     help="seuil de retour pour samples_to_threshold ; a fixer "
                          "depuis la courbe du pilote, pas a deviner")
     args = ap.parse_args()
 
-    runs = load(args.run_id)
-    if not runs:
-        print(f"aucun log dans {LOGS} (run_id={args.run_id})")
-        return
+    if args.from_logs:
+        runs = load_logs(args.run_id)
+        if not runs:
+            print(f"aucun log dans {LOGS} (run_id={args.run_id})")
+            return
+    else:
+        if not args.csv.exists():
+            print(f"{args.csv} absent -- le generer avec :\n"
+                  f"    .venv/bin/python export_csv.py --run-id PILOT\n"
+                  f"ou lire directement les JSONL avec --from-logs")
+            return
+        runs = load_csv(args.csv)
 
     envs = sorted({k[0] for k in runs})
     print(f"{len(runs)} run(s) charge(s) | envs : {', '.join(envs)}\n")

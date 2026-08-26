@@ -268,13 +268,20 @@ OMP_NUM_THREADS=3 .venv/bin/python -m ppo_arms.run_sweep \
 
 Un fichier `benchmarks/logs/<run_id>_<env>_<arm>_seed<N>.jsonl` par run, une ligne par itération, toutes les métriques RLlib aplaties (323 clés). Rien n'est écrasé.
 
-Puis, pour régénérer tous les tableaux de la §5.2 :
+Puis, pour convertir les logs en CSV et régénérer tous les tableaux de la §5.2 :
 
 ```bash
-.venv/bin/python analyze.py --run-id sweep1 --threshold 100
+.venv/bin/python export_csv.py --run-id sweep1
+.venv/bin/python analyze.py --threshold 100
 ```
 
-**Les 30 logs bruts de ce sweep sont versionnés** sous `benchmarks/logs/PILOT_*.jsonl` : les chiffres du rapport sont recalculables sans relancer 13 heures de runs, et vérifiables ligne à ligne.
+**Les résultats des 30 runs sont versionnés** sous [`benchmarks/results/runs.csv`](../benchmarks/results/runs.csv) — 2898 lignes, une par itération, 614 Ko. **Tous les chiffres de ce document sont recalculables à partir de ce seul fichier**, sans relancer les 13 heures de calcul :
+
+```bash
+.venv/bin/python analyze.py --threshold 100
+```
+
+Les JSONL bruts (45 Mo, 323 colonnes par ligne dont 16 utilisées) ne sont **pas** versionnés : ils resteraient dans l'historique git indéfiniment pour des colonnes que personne ne relit. `analyze.py --from-logs` les lit encore si vous relancez le sweep vous-même, et produit une sortie identique au octet près.
 
 ---
 
