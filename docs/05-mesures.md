@@ -286,15 +286,53 @@ Il faut séparer deux questions que la formulation « est-ce que RLlib implémen
 
 **L'objectif clippé est correct, ligne à ligne.** L'éq. (7) du papier se retrouve telle quelle dans `ppo_torch_learner.py`, y compris le `min` et le sens des deux branches ([02 §3](02-ppo-papier-vs-rllib.md)). La récursion GAE de l'éq. (16) est correcte, y compris la coupure aux frontières d'épisodes ([03 §3](03-gae-papier-vs-rllib.md)). Rien de ce qui a été mesuré ne remet cela en cause. **Ce n'est pas un bug d'implémentation.**
 
-**Les valeurs par défaut, elles, coûtent un facteur 4.** Sur les trois environnements MuJoCo testés, la config de la Table 3 du papier bat `PPOConfig()` nu sur **les neuf runs**, sans un seul chevauchement.
+**Les valeurs par défaut, elles, coûtent cher.** Le plus simple est de regarder la seule courbe que tout entraînement RL affiche — `env_runners/episode_return_mean`, la somme des récompenses d'un épisode — aux mêmes budgets d'échantillons, moyennée sur les trois graines :
 
-| | progrès au-dessus de l'aléatoire | échantillons pour un seuil | retour final brut |
+**HalfCheetah-v5**
+
+| bras | 50k pas | 100k | 150k | 200k | 250k | 300k |
+|---|---|---|---|---|---|---|
+| `D` défauts | −297 | −218 | −89 | −36 | 131 | **303** |
+| `D_kl` (KL désactivée) | −239 | −105 | 146 | 369 | 421 | **528** |
+| `D_lambda` (λ=0,95) | −186 | −39 | 255 | 505 | 598 | **930** |
+| `P` config du papier | −129 | 309 | 790 | 1051 | 1354 | **1757** |
+
+**Hopper-v5** et **Walker2d-v5**
+
+| env | bras | 50k | 100k | 150k | 200k | 250k | 300k |
+|---|---|---|---|---|---|---|---|
+| Hopper | `D` | 216 | 288 | 318 | 358 | 361 | **369** |
+| Hopper | `P` | 319 | 465 | 636 | 835 | 1234 | **1689** |
+| Walker2d | `D` | 233 | 266 | 302 | 310 | 312 | **318** |
+| Walker2d | `P` | 299 | 381 | 603 | 899 | 937 | **1428** |
+
+Trois choses se lisent directement sur ces lignes, et aucune n'a besoin d'un ratio :
+
+1. **`P` est devant à tous les relevés, sur les trois environnements.** Pas de croisement, pas de rattrapage tardif, et aucun chevauchement entre graines sur les 9 runs.
+2. **`D` plafonne sur Hopper et Walker2d** — 358 → 361 → 369 sur les 100 000 derniers pas — alors que `P` accélère encore à l'arrêt. Ce n'est pas un retard, c'est un plateau.
+3. **`P` arrive plus tôt.** Le retour de 100 est franchi à 70 000 pas contre 235 000 pour `D` sur HalfCheetah. En temps réel sur la même machine : **3,1 minutes contre 20,4**, parce que `P` est aussi 2× plus rapide par pas (380 contre 190 pas/s, voir [§4](#4-conditions-matérielles)).
+
+#### Et si l'on veut un seul chiffre
+
+Les rapports de retours sont commodes mais fragiles, et il faut dire lequel on cite :
+
+| | `lambda_=0.95` | KL désactivée | config `P` |
 |---|---|---|---|
-| HalfCheetah-v5 | ×3,8 | ×3,3 | ×7,4 |
-| Hopper-v5 | ×3,6 | ×2,1 | ×3,5 |
-| Walker2d-v5 | ×4,2 | ×2,1 | ×4,2 |
+| retour final, rapport **brut** | ×4,0 | ×2,4 | ×7,4 |
+| **progrès au-dessus de l'aléatoire** | ×2,3 | ×1,6 | ×3,8 |
+| échantillons pour atteindre un retour de 100 | ×1,6 | ×1,8 | ×3,3 |
 
-Et pas au prix du temps de calcul : `P` est aussi **2× plus rapide** en temps mur.
+Le rapport **brut** divise deux retours finaux : 813 / 205 = 4,0. Il est trompeur ici, parce qu'une politique aléatoire sur HalfCheetah obtient **−270,7** : le zéro de l'échelle est arbitraire, et déplacer l'origine change le rapport à volonté.
+
+Le **progrès au-dessus de l'aléatoire** corrige cela en mesurant le chemin parcouru depuis le point de départ réel — c'est la convention de la Table 1 du papier :
+
+```math
+\frac{R_{\text{bras}} - R_{\text{aléatoire}}}{R_{D} - R_{\text{aléatoire}}} = \frac{813 - (-270{,}7)}{205 - (-270{,}7)} = 2{,}3
+```
+
+Sur Hopper et Walker2d, dont le retour aléatoire est proche de 0, les deux rapports coïncident (×3,5 et ×3,6 ; ×4,2 et ×4,2) — c'est HalfCheetah seul qui gonflait le chiffre brut.
+
+**Aucun de ces rapports n'est une « vitesse de convergence ».** Rien n'a convergé à 300 000 pas. La ligne « échantillons pour atteindre un retour de 100 » est ce qui s'en rapproche le plus, et c'est la seule à répondre à la question pratique : *combien de temps avant d'avoir quelque chose qui marche.*
 
 > **En clair** : personne n'a écrit PPO de travers. Quelqu'un a laissé les réglages génériques d'`AlgorithmConfig` là où PPO avait besoin des siens, et le résultat par défaut est un algorithme qui apprend sept fois moins bien que ce que le même code sait faire.
 
@@ -347,6 +385,28 @@ C'est le bras `P`, celui qui donne le ×3,8. Le `MeanStdFilter` sur les observat
 **Le classement vaut à 300 000 pas.** Aucun bras n'a convergé et la courbe de `D` monte encore à l'arrêt. Un budget de 1 M pas — celui du papier — pourrait resserrer l'écart, sans qu'on sache de combien.
 
 **Un seul environnement porte l'ablation.** Le ratio d'écrêtage varie d'un facteur 26 entre HalfCheetah (24) et Hopper (623) : le classement des leviers n'est pas garanti transférable, en particulier vers les environnements à récompenses de faible amplitude où `vf_clip_param=10` ne mord pas du tout.
+
+### Ce que vous verrez concrètement dans vos propres logs
+
+En appliquant les deux leviers principaux, voici les métriques qui bougent, dans l'ordre où vous les remarquerez.
+
+**Dès les premières minutes — les itérations vont plus vite.** `num_epochs` passe de 30 à 10 : trois fois moins de pas de gradient par lot collecté. Mesuré ici : **190 → 380 pas/s**, une itération de 26 s tombe à 13 s. C'est visible immédiatement, avant même que la politique ait appris quoi que ce soit.
+
+**Dans les premiers 10 % du budget — `env_runners/episode_return_mean` décolle plus tôt.** C'est le signal principal. Sur HalfCheetah, à 100 000 pas, les défauts sont encore à −218 pendant que la config du papier est déjà à +309. Vous ne verrez pas « la même courbe en plus rapide » : vous verrez une courbe qui quitte le plancher pendant que l'autre y reste.
+
+**Sur toute la durée — la courbe ne plafonne plus.** C'est ce qui se voit le mieux sur Hopper et Walker2d : les défauts se figent autour de 310-370 et n'en bougent plus, alors que `P` monte encore quand on l'arrête. Si votre courbe actuelle a un plateau précoce que vous attribuiez à la tâche, il vaut la peine de vérifier que ce n'est pas `lambda_`.
+
+**Dans les métriques du learner** — trois changements mécaniques, utiles comme vérification que les réglages ont bien pris :
+
+| métrique | avant | après | ce que ça dit |
+|---|---|---|---|
+| `vf_loss_unclipped` / `vf_loss` | 24 à 623 | tombe vers 5, ou 1 avec `vf_clip_param=inf` | la part du gradient du critique qui n'est plus jetée |
+| `vf_explained_var` | ~0,1 | ~0,7 | le critique explique enfin la variance des retours |
+| `mean_kl_loss`, `curr_kl_coeff` | actives, β dérive | inertes | confirme que `use_kl_loss=False` est bien pris |
+
+`vf_explained_var` est **bruitée** — RLlib la logue avec `window=1`, donc sur un seul minibatch. Elle sert d'indication de tendance, pas de test à seuil : c'est en partie ce qui a fait échouer la prédiction P1 (§5.2).
+
+**Ce que vous ne verrez pas, et qui serait un signal d'alerte** : si `env_runners/episode_return_mean` s'effondre après le changement, le suspect est le couple `lr=3e-4` / `num_epochs=10`, pas `lambda_` ni la KL. Ces deux-là se règlent ensemble et dépendent de la taille du lot — voir le domaine de validité ci-dessous. Repartez alors des deux seuls leviers principaux, en gardant `lr` et `num_epochs` aux valeurs RLlib.
 
 ### Peut-on appliquer ça les yeux fermés sur un autre environnement ?
 
