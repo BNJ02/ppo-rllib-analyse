@@ -24,7 +24,8 @@ Tous les extraits de code et numéros de ligne proviennent de `ray-project/ray` 
 
 | # | Document | Contenu |
 |---|---|---|
-| — | [**Fiche : gradient de politique**](docs/fiche-policy-gradient.md) | le cours amont, de REINFORCE à GRPO — toutes les formules démontrées, la chaîne des défauts que chaque méthode répare. À lire avant le reste si les maths ne sont pas déjà acquises |
+| — | [**Intuition : de REINFORCE à PPO**](docs/fiche-policy-gradient-intuition.md) | la porte d'entrée — 10 schémas, aucune démonstration, juste le défaut que chaque méthode répare. Tous les chiffres sont mesurés sur un PDM jouet dont les 2187 trajectoires sont énumérées |
+| — | [**Fiche : gradient de politique**](docs/fiche-policy-gradient.md) | le même parcours **avec les démonstrations**, de REINFORCE à GRPO. Vérifié par [`docs/verif/`](docs/verif/) : 50 assertions numériques + 22 symboliques |
 | 0 | [Résumé du papier PPO](docs/00-resume-papier-ppo.md) | une page — et pourquoi « Algorithm**s** » au pluriel |
 | 1 | [Comprendre le papier](docs/01-comprendre-le-papier-ppo.md) | guide de lecture, équation (7) décortiquée cas par cas, six erreurs de lecture classiques, auto-test |
 | 2 | [PPO : papier vs RLlib](docs/02-ppo-papier-vs-rllib.md) | correspondance ligne à ligne, 8 écarts classés par gravité, config de reproduction |

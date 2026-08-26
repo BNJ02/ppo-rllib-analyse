@@ -1,0 +1,88 @@
+# Toutes les valeurs citees dans fiche-policy-gradient-intuition.md
+# Regenere par : python3 rapport/figures/make_figures.py
+
+controle KL numpy vs torch (ecart max)                 6.51e-17
+PDM : nombre de trajectoires enumerees                 2187
+PDM : J(theta_0)                                       2.8388
+F2 biais max de toutes les variantes                   1.78e-15
+F2 variance retour total (REINFORCE brut)              14.1759
+F2 variance + causalité                                5.8435
+F2 variance + baseline constant                        1.5104
+F2 variance + baseline $V_t(S_t)$                      0.7486
+F2 variance avantage exact $A^\pi$ (critique parfait)  0.2361
+F2 facteur retour total -> avantage                    60.0
+F2 facteur de la causalite seule                       2.43
+F2 facteur du baseline V seul                          7.81
+F3 etat le plus visite                                 s = 0 (d = 0.632)
+F3 Q(s*,.)                                             +2.535  +3.281  +2.249
+F3 A(s*,.)                                             -0.303  +0.443  -0.590
+F3 V(s*)                                               2.8388
+F3 variance sans baseline, c=0                         5.8435
+F3 variance sans baseline, c=6                         379.4691
+F3 variance avec baseline, c=6                         0.7486
+F3 facteur a c=6                                       507
+F3 ecart max sur le gradient (toutes valeurs de c)     8.16e-15
+F4 |esperance| max sous la diagonale (tau < t)         3.72e-17
+F4 |esperance| max sur et au-dessus de la diagonale    0.1817
+F4 variance jetee par la causalite (somme tau < t)     2.1996
+F4 variance conservee (somme tau >= t)                 2.3139
+F4 part de variance jetee (%)                          49
+F5 bruit ajoute au critique (ecart-type)               0.6
+F5 n=1 biais (V approche)                              0.0617
+F5 n=1 variance (V exact)                              0.2857
+F5 n=2 biais (V approche)                              0.0012
+F5 n=2 variance (V exact)                              0.5440
+F5 n=3 biais (V approche)                              0.0003
+F5 n=3 variance (V exact)                              0.6892
+F5 n=4 biais (V approche)                              0.0000
+F5 n=4 variance (V exact)                              0.7486
+F5 biais a lambda=0 (V approche)                       0.0617
+F5 biais a lambda=0,98 (V approche)                    1.22e-03
+F5 variance a lambda=0 (V exact)                       0.2857
+F5 variance a lambda=0,98 (V exact)                    0.7199
+F6 angle entre le gradient et le gradient naturel (degres) 48.4
+F6 conditionnement de F                                27.1
+F6 rayon de la boule euclidienne (= longueur du pas naturel) 0.9709
+F6 gain d'objectif linearise, pas euclidien            0.5298
+F6 gain d'objectif linearise, pas naturel              0.3521
+F6 vraie KL atteinte par le pas euclidien              0.0652
+F6 vraie KL atteinte par le pas naturel                0.0183
+F6 rayon KL demande (epsilon)                          0.02
+F6 gain linearise par unite de KL, pas euclidien       8.1
+F6 gain linearise par unite de KL, pas naturel         19.3
+F6 rapport des vraies KL, euclidien / naturel          3.57
+F6 rapport d'efficacite naturel / euclidien            2.37
+F7 rehelonnement M (diagonale)                         1  3  0.35  1  4  0.25
+F7 pas de gradient ordinaire alpha                     0.50
+F7 rayon KL du gradient naturel                        0.010
+F7 ecart max entre les 2 courbes ORDINAIRES            0.9293
+F7 ecart max entre les 2 courbes NATURELLES            3.55e-15
+F7 J final, ordinaire, coordonnees d'origine           3.8674
+F7 J final, ordinaire, coordonnees reechelonnees       4.2255
+F7 J final, naturel (les deux)                         4.3460
+F8 KL vraie / KL quadratique, pas court                0.961
+F8 KL vraie / KL quadratique, pas long                 0.290
+F8 surestimation du substitut, pas court (%)           0.36
+F8 surestimation du substitut, pas long (%)            3.51
+F8 epsilon de la region de confiance                   0.02
+F8 KL atteinte par le pas non recule (F mal estimee)   0.0297
+F8 depassement (facteur)                               1.49
+F8 nombre de rebroussements avant acceptation          1
+F8 KL apres rebroussement                              0.0195
+F8 KL du pas calcule avec la VRAIE F                   0.0183
+F9 largeur de clipping epsilon                         0.2
+F9 borne active si A>0                                 1.2
+F9 borne active si A<0                                 0.8
+F10 substitut non clippe, max sur la fenetre           1.2180
+F10 objectif clippe, max sur la fenetre                0.3081
+F10 objectif clippe, valeur au bord de la fenetre      0.2981
+F10 epsilon KL (TRPO)                                  0.02
+F10 epsilon de clipping (PPO)                          0.2
+F11 pas d'apprentissage de la boucle interne           0.02
+F11 nombre de pas dans la boucle interne               60
+F11 fraction clippee, pas 0 (%)                        0.0
+F11 fraction clippee, pas final (%)                    63.2
+F11 norme du gradient clippe, pas 0                    0.5457
+F11 norme du gradient clippe, pas final                0.1928
+F11 norme du gradient NON clippe, pas final            0.5191
+F11 extinction du gradient clippe (facteur)            2.8

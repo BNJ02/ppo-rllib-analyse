@@ -4,6 +4,8 @@ De REINFORCE à PPO, en suivant la page [Policy gradient method](https://en.wiki
 
 **Fil directeur** : chaque méthode répare un défaut précis de la précédente. Retenir la chaîne des défauts, c'est retenir la moitié du cours.
 
+> **Trop dense ?** [De REINFORCE à PPO — la version intuitive](fiche-policy-gradient-intuition.md) parcourt exactement les mêmes étapes avec des schémas et sans une seule démonstration. Les deux se lisent en parallèle : chaque section de la version intuitive renvoie ici pour la preuve.
+>
 > Cette fiche est le **cours amont** du reste du dépôt. Elle s'arrête là où le papier PPO commence. Pour la suite : [comprendre le papier](01-comprendre-le-papier-ppo.md), puis ce que RLlib en fait réellement ([02](02-ppo-papier-vs-rllib.md), [03](03-gae-papier-vs-rllib.md)) et ce que ça coûte en pratique ([05, mesuré](05-mesures.md)).
 
 | Méthode | Ce qu'on maximise | Garde-fou | Ordre | Défaut résiduel |
@@ -327,7 +329,7 @@ En pratique on l'écrit récursivement avec le résidu TD $`\delta_t = R_t + \ga
 \hat A_t = \delta_t + \gamma\lambda\,\hat A_{t+1}
 ```
 
-> Détails d'implémentation et écarts entre le papier et RLlib : voir [`rapport-gae-ray-vs-papier.md`](rapport-gae-ray-vs-papier.md).
+> Détails d'implémentation et écarts entre le papier et RLlib : voir [`rapport-gae-ray-vs-papier.md`](03-gae-papier-vs-rllib.md).
 
 **Ce qui reste cassé après la section 3.** La variance est domptée, mais rien ne contrôle la **taille du pas**. Un pas trop grand détruit la politique, et comme les données suivantes sont collectées par cette politique détruite, il n'y a pas de retour en arrière : l'entraînement s'effondre. C'est le problème des sections 4 à 6.
 
@@ -696,7 +698,7 @@ et $`k_3`$ estime $`D_{KL}(q \| p)`$ sans biais. Il s'obtient comme $`k_1`$ **pl
 
 > **⚠️ Écart vérifié — la loi d'échantillonnage.** Cette identité exige $`a \sim \pi_\theta`$, la politique **courante**. La page Wikipédia (comme le code RLHF réel) écrit $`\mathbb{E}_{s,a \sim \pi_{\theta_t}}`$, sous la politique de **collecte**. Les deux ne coïncident qu'en $`\theta = \theta_t`$, c'est-à-dire au premier pas de la boucle interne ; ensuite l'égalité n'est plus exacte (mesuré : écart de 0,024 sur un exemple où $`\pi_{\theta_t} \neq \pi_\theta`$, test #29b). En pratique la boucle interne garde $`\theta`$ proche de $`\theta_t`$, ce qui rend l'écart petit — c'est le même argument que pour le substitut lui-même.
 
-> Lecture du papier original : [`comprendre-le-papier-ppo.md`](comprendre-le-papier-ppo.md) · résumé express : [`resume-papier-ppo-1page.md`](resume-papier-ppo-1page.md) · implémentation Ray/RLlib : [`rapport-ppo-ray-vs-papier.md`](rapport-ppo-ray-vs-papier.md).
+> Lecture du papier original : [`comprendre-le-papier-ppo.md`](01-comprendre-le-papier-ppo.md) · résumé express : [`resume-papier-ppo-1page.md`](00-resume-papier-ppo.md) · implémentation Ray/RLlib : [`rapport-ppo-ray-vs-papier.md`](02-ppo-papier-vs-rllib.md).
 
 ---
 
