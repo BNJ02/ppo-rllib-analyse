@@ -324,7 +324,9 @@ C'est un héritage de `AlgorithmConfig` (valeur générique jamais spécialisée
 | `vf_explained_var` en fin de run | 0,1 | **0,7** |
 | rapport perte de valeur non-écrêtée / écrêtée | 24,0 | **5,0** |
 
-×4,0 sur le retour, −39 % d'échantillons. C'est le **plus fort des quatre leviers isolés**, devant la pénalité KL cumulée (×2,4), et la séparation est nette sur les trois graines.
+**×2,3 de progrès au-dessus de l'aléatoire**, −39 % d'échantillons. C'est le **plus fort des quatre leviers isolés**, devant la pénalité KL cumulée (×1,6), et la séparation est nette sur les trois graines.
+
+Le rapport **brut** des retours finaux vaut ×4,0, mais c'est un chiffre trompeur : le retour d'une politique aléatoire sur HalfCheetah est de −270,7, donc le zéro de l'échelle est arbitraire et tout rapport brut est gonflé par ce décalage. Le chiffre à citer est celui corrigé de l'aléatoire ([05 §5.2](05-mesures.md)).
 
 **Effet indirect qui n'était pas prévu : λ conditionne l'écrêtage de la perte de valeur.** La cible du critique est la cible TD(λ) (§3.2), pas le retour Monte-Carlo. Avec $`\lambda = 1`$ elle dégénère en Monte-Carlo — loin de $`V`$, à forte variance — donc l'erreur quadratique dépasse presque toujours `vf_clip_param=10` et le gradient du critique est massivement écrêté. Avec $`\lambda = 0.95`$ la cible reste proche de $`V`$ et l'erreur passe souvent sous le seuil. **Le ratio d'écrêtage tombe de 24,0 à 5,0 sans qu'on touche à `vf_clip_param`.**
 

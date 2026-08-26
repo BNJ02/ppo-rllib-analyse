@@ -228,14 +228,16 @@ Avec λ = 1 elle dégénère en Monte-Carlo : loin de $`V`$, à forte variance, 
 
 **2. Le classement mesuré des trois écarts testables est :**
 
-| rang | écart | effet mesuré sur le retour (HalfCheetah) |
-|---|---|---|
-| 1 | `lambda_=1.0` au lieu de 0,95 | ×4,0 |
-| 2 | pénalité KL cumulée au clipping | ×2,4 |
-| 3 | `clip_param=0.3` au lieu de 0,2 | aucun bénéfice mesurable, tendance défavorable |
-| — | `vf_clip_param=10` | aucun effet isolé (mais amplifie le n° 1) |
+| rang | écart | progrès au-dessus de l'aléatoire | échantillons pour un seuil |
+|---|---|---|---|
+| 1 | `lambda_=1.0` au lieu de 0,95 | ×2,3 | ×1,6 |
+| 2 | pénalité KL cumulée au clipping | ×1,6 | ×1,8 |
+| 3 | `clip_param=0.3` au lieu de 0,2 | ×0,8 (défavorable, non concluant) | ×1,0 |
+| — | `vf_clip_param=10` | ×1,0 | ×1,0 |
 
-**3. La somme dépasse ses parties.** `P` (×7,4) fait mieux que le meilleur levier isolé (×4,0), et corrige en plus le réseau, le pas d'apprentissage et le nombre d'époques. Les leviers ne sont pas additifs et ne peuvent pas être classés indépendamment — ce que l'ablation un-facteur-à-la-fois montre justement en échouant à reconstituer `P`.
+**Sur quelle métrique.** « Progrès au-dessus de l'aléatoire » = $`(R_{\text{bras}} - R_{\text{aléatoire}}) / (R_{D} - R_{\text{aléatoire}})`$, la convention de la Table 1 du papier. Le **rapport brut** des retours finaux donne des chiffres plus flatteurs — ×4,0 et ×2,4 — mais il n'a pas de sens sur HalfCheetah, dont le retour aléatoire vaut −270,7 : le zéro de l'échelle y est arbitraire, et tout rapport brut est gonflé par ce décalage. Les deux nombres sont donnés partout dans ce document ; **c'est celui corrigé de l'aléatoire qui doit être cité.**
+
+**3. La somme dépasse ses parties.** `P` (×3,8 au-dessus de l'aléatoire) fait mieux que le meilleur levier isolé (×2,3), et corrige en plus le réseau, le pas d'apprentissage et le nombre d'époques. Les leviers ne sont pas additifs et ne peuvent pas être classés indépendamment — ce que l'ablation un-facteur-à-la-fois montre justement en échouant à reconstituer `P`.
 
 #### Limites
 
@@ -284,7 +286,15 @@ Il faut séparer deux questions que la formulation « est-ce que RLlib implémen
 
 **L'objectif clippé est correct, ligne à ligne.** L'éq. (7) du papier se retrouve telle quelle dans `ppo_torch_learner.py`, y compris le `min` et le sens des deux branches ([02 §3](02-ppo-papier-vs-rllib.md)). La récursion GAE de l'éq. (16) est correcte, y compris la coupure aux frontières d'épisodes ([03 §3](03-gae-papier-vs-rllib.md)). Rien de ce qui a été mesuré ne remet cela en cause. **Ce n'est pas un bug d'implémentation.**
 
-**Les valeurs par défaut, elles, coûtent un facteur 7.** Sur les trois environnements MuJoCo testés, la config de la Table 3 du papier bat `PPOConfig()` nu sur **les neuf runs**, sans un seul chevauchement : ×7,4 sur HalfCheetah, ×4,2 sur Walker2d, ×3,5 sur Hopper. Et pas au prix du temps de calcul — `P` est aussi **2× plus rapide** en temps mur et demande **3,3× moins d'échantillons**.
+**Les valeurs par défaut, elles, coûtent un facteur 4.** Sur les trois environnements MuJoCo testés, la config de la Table 3 du papier bat `PPOConfig()` nu sur **les neuf runs**, sans un seul chevauchement.
+
+| | progrès au-dessus de l'aléatoire | échantillons pour un seuil | retour final brut |
+|---|---|---|---|
+| HalfCheetah-v5 | ×3,8 | ×3,3 | ×7,4 |
+| Hopper-v5 | ×3,6 | ×2,1 | ×3,5 |
+| Walker2d-v5 | ×4,2 | ×2,1 | ×4,2 |
+
+Et pas au prix du temps de calcul : `P` est aussi **2× plus rapide** en temps mur.
 
 > **En clair** : personne n'a écrit PPO de travers. Quelqu'un a laissé les réglages génériques d'`AlgorithmConfig` là où PPO avait besoin des siens, et le résultat par défaut est un algorithme qui apprend sept fois moins bien que ce que le même code sait faire.
 
@@ -292,10 +302,10 @@ Il faut séparer deux questions que la formulation « est-ce que RLlib implémen
 
 Par ordre d'effet décroissant sur HalfCheetah, chaque levier testé **isolément** :
 
-| levier | correction | effet mesuré | pourquoi |
+| levier | correction | progrès au-dessus de l'aléatoire | pourquoi |
 |---|---|---|---|
-| `lambda_` | `1.0` → `0.95` | **×4,0** | à λ=1 GAE dégénère en Monte-Carlo — l'estimateur que le papier GAE remplace ([03 §4.1](03-gae-papier-vs-rllib.md)) |
-| `use_kl_loss` | `True` → `False` | **×2,4** | RLlib cumule pénalité KL **et** clipping ; le papier les présente comme deux alternatives ([02 §4.1](02-ppo-papier-vs-rllib.md)) |
+| `lambda_` | `1.0` → `0.95` | **×2,3** (brut ×4,0) | à λ=1 GAE dégénère en Monte-Carlo — l'estimateur que le papier GAE remplace ([03 §4.1](03-gae-papier-vs-rllib.md)) |
+| `use_kl_loss` | `True` → `False` | **×1,6** (brut ×2,4) | RLlib cumule pénalité KL **et** clipping ; le papier les présente comme deux alternatives ([02 §4.1](02-ppo-papier-vs-rllib.md)) |
 | `clip_param` | `0.3` → `0.2` | aucun bénéfice isolé | le réglage du papier ne se transporte pas hors de sa config d'origine ([02 §4.5](02-ppo-papier-vs-rllib.md)) |
 | `vf_clip_param` | `10` → `inf` | aucun effet isolé | écrête pourtant 96 à 99,8 % du gradient du critique ([02 §4.3](02-ppo-papier-vs-rllib.md)) |
 
@@ -307,7 +317,7 @@ Par ordre d'effet décroissant sur HalfCheetah, chaque levier testé **isolémen
 config = (
     PPOConfig()
     .training(
-        lambda_=0.95,          # levier n°1 : x4,0 a lui seul
+        lambda_=0.95,          # levier n°1 : x2,3 a lui seul
         use_kl_loss=False,     # levier n°2 : x2,4 a lui seul
         kl_coeff=0.0,
         clip_param=0.2,
@@ -326,17 +336,46 @@ config = (
 )
 ```
 
-C'est le bras `P`, celui qui donne le ×7,4. Le `MeanStdFilter` sur les observations n'est pas dans le papier mais était **actif sur tous les bras**, référence comprise : ce n'est pas lui qui produit l'écart.
+C'est le bras `P`, celui qui donne le ×3,8. Le `MeanStdFilter` sur les observations n'est pas dans le papier mais était **actif sur tous les bras**, référence comprise : ce n'est pas lui qui produit l'écart.
 
 **Le couple `lr` / `num_epochs` mérite une note.** Les défauts RLlib (`lr=5e-5`, `num_epochs=30`) font **937 pas de gradient par itération** contre 320 pour le papier — trois fois le calcul pour chaque échantillon collecté, ce qui explique à soi seul l'écart de débit (190 contre 380 pas/s, [§4](#4-conditions-matérielles)). Ces deux réglages vont ensemble : baisser `num_epochs` sans monter `lr` sous-entraînerait.
 
 ### Ce qui reste non tranché
 
-**La décomposition du ×7,4 est incomplète.** L'ablation n'a isolé que quatre champs. `P` change aussi `lr`, `num_epochs`, `minibatch_size`, la taille du batch et le réseau ([64,64] tanh + `free_log_std` contre [256,256] tanh + σ dépendant de l'état). **Impossible de dire quelle part du gain vient de l'optimisation ou de l'architecture** — il faudrait quatre bras de plus. Ce qui est certain : les leviers ne sont pas additifs, puisque `P` (×7,4) dépasse le meilleur levier isolé (×4,0).
+**La décomposition du gain est incomplète.** L'ablation n'a isolé que quatre champs. `P` change aussi `lr`, `num_epochs`, `minibatch_size`, la taille du batch et le réseau ([64,64] tanh + `free_log_std` contre [256,256] tanh + σ dépendant de l'état). **Impossible de dire quelle part du gain vient de l'optimisation ou de l'architecture** — il faudrait quatre bras de plus. Ce qui est certain : les leviers ne sont pas additifs, puisque `P` (×3,8) dépasse le meilleur levier isolé (×2,3).
 
 **Le classement vaut à 300 000 pas.** Aucun bras n'a convergé et la courbe de `D` monte encore à l'arrêt. Un budget de 1 M pas — celui du papier — pourrait resserrer l'écart, sans qu'on sache de combien.
 
 **Un seul environnement porte l'ablation.** Le ratio d'écrêtage varie d'un facteur 26 entre HalfCheetah (24) et Hopper (623) : le classement des leviers n'est pas garanti transférable, en particulier vers les environnements à récompenses de faible amplitude où `vf_clip_param=10` ne mord pas du tout.
+
+### Peut-on appliquer ça les yeux fermés sur un autre environnement ?
+
+**Non.** Ce qui a été mesuré, ce sont trois tâches de locomotion continue MuJoCo, sur 300 000 pas. Voici ce que chaque levier suppose, et donc où il cesse de valoir.
+
+| levier | transférable ? | ce dont l'effet dépend |
+|---|---|---|
+| `use_kl_loss=False` | **oui, largement** | ne dépend d'aucune propriété de l'environnement — c'est un terme d'objectif que le papier ne prévoit pas. Le seul risque à l'enlever est une politique qui bouge plus vite par pas, à surveiller via `mean_kl_loss` |
+| `lambda_=0.95` | **oui, probablement** | recommandation quasi universelle de la littérature ($`\lambda \in [0{,}9\,;\,0{,}99]`$, papier GAE §5). L'effet devrait *diminuer* sur des épisodes courts, où Monte-Carlo n'est pas si bruité |
+| `vf_clip_param=inf` | **dépend de l'échelle des récompenses** | ne mord que si $`(V - V^{targ})^2 > 10`$. Sur nos envs le ratio d'écrêtage va de 24 à 623 ; sur un environnement à récompenses de faible amplitude il vaudra 1 et le réglage sera sans objet |
+| `clip_param=0.2` | **non** | mesuré comme ne se transportant pas, même entre deux configs du même environnement |
+| `lr=3e-4` + `num_epochs=10` | **non, à retester** | c'est un couple. Le bon compromis dépend de la taille du batch et du bruit des gradients, donc de la tâche |
+| réseau `[64,64]` tanh | **non** | dimensionné pour des observations MuJoCo de taille ~17. Sur des images ou des espaces bien plus grands, c'est trop petit |
+
+**Trois angles morts complets** — rien de ce dépôt ne dit quoi que ce soit à leur sujet :
+
+- **Actions discrètes.** Les trois envs sont continus. `free_log_std` n'a même pas de sens en discret, et l'écrêtage de la perte de valeur se comporte différemment sur des récompenses bornées.
+- **Multi-agent.** Non testé. [04](04-ppo-multiagent-rllib.md) ajoute d'ailleurs ses propres écarts — époques effectives inégales entre modules, avantages standardisés par module — qui pourraient dominer ceux-ci.
+- **Récompenses éparses ou de faible amplitude.** Tout le mécanisme de l'écrêtage repose sur l'échelle de $`V`$.
+
+**La procédure sûre**, plutôt que de recopier la config : appliquer les deux premiers leviers, puis **mesurer sur sa propre tâche**. Deux runs suffisent à trancher, et le harnais de `benchmarks/` le fait déjà — un bras d'ablation, c'est une ligne dans `ARMS`.
+
+Le diagnostic à regarder en premier, quel que soit l'environnement : le rapport `vf_loss_unclipped / vf_loss`. S'il vaut 1, `vf_clip_param` est hors sujet chez vous. S'il vaut 20 ou 600, il écrête, et `lambda_` est le premier réglage à corriger.
+
+### Le résumé en trois phrases, pour transmettre
+
+> RLlib implémente correctement les maths de PPO, mais `PPOConfig()` par défaut n'est pas la configuration du papier : il ajoute une pénalité KL au clipping, et il met `lambda_=1.0`, ce qui annule GAE. Sur trois tâches MuJoCo, trois graines, la configuration du papier progresse **3,8 fois plus** que les défauts pour un même budget d'échantillons, tout en tournant deux fois plus vite. Les deux lignes qui récupèrent l'essentiel sont `lambda_=0.95` et `use_kl_loss=False` — mais l'ampleur du gain dépend de la tâche, donc à vérifier sur la vôtre avant de généraliser.
+
+Ce qu'il ne faut **pas** leur dire : « le critique de RLlib ne marche pas ». C'est ce que ce dépôt affirmait avant de mesurer, et c'est faux — voir [02 §4.3](02-ppo-papier-vs-rllib.md).
 
 ### La réponse courte
 

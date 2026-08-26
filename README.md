@@ -62,8 +62,8 @@ La colonne **mesuré** vient de [05 §5.2](docs/05-mesures.md) : 30 runs, 3 grai
 
 | # | Écart | Gravité | Mesuré | Où |
 |---|---|---|---|---|
-| 1 | `lambda_=1.0` — désactive GAE | **élevée** | **×4,0 sur le retour** | [§4.1](docs/03-gae-papier-vs-rllib.md) |
-| 2 | Clipping **et** pénalité KL cumulés par défaut | **élevée** | **×2,4 sur le retour** | [§4.1](docs/02-ppo-papier-vs-rllib.md) |
+| 1 | `lambda_=1.0` — désactive GAE | **élevée** | **×2,3** de progrès | [§4.1](docs/03-gae-papier-vs-rllib.md) |
+| 2 | Clipping **et** pénalité KL cumulés par défaut | **élevée** | **×1,6** de progrès | [§4.1](docs/02-ppo-papier-vs-rllib.md) |
 | 3 | Clipping de la **perte** de valeur à 10 | moyenne | 24× à 623× de gradient écrêté, **mais aucun effet isolé** | [§4.3](docs/02-ppo-papier-vs-rllib.md) |
 | 4 | ε=0,3 alors que le papier mesure 0,2 meilleur | faible | aucun bénéfice à corriger seul | [§4.5](docs/02-ppo-papier-vs-rllib.md) |
 | 5 | Règle d'adaptation de β aux constantes interverties | moyenne | non isolé | [§4.2](docs/02-ppo-papier-vs-rllib.md) |
@@ -73,7 +73,9 @@ La colonne **mesuré** vient de [05 §5.2](docs/05-mesures.md) : 30 runs, 3 grai
 | 9 | Architecture 256×256, σ dépendant de l'état | faible | non isolé | [§4.6](docs/02-ppo-papier-vs-rllib.md) |
 | 10 | Minibatchs circulaires chevauchant deux époques | faible | non isolé | [§3.4](docs/02-ppo-papier-vs-rllib.md) |
 
-**Tous les écarts corrigés ensemble** (bras `P`, config de la Table 3 du papier) : **×7,4 sur le retour**, 3,3× moins d'échantillons pour un même seuil, et 2× plus rapide en temps mur. Plus que le meilleur levier isolé — les leviers ne sont pas additifs.
+« Progrès » = $`(R - R_{\text{aléatoire}})`$ rapporté à celui des défauts, la convention de la Table 1 du papier. Le rapport **brut** des retours finaux donne ×4,0 et ×2,4, mais il est gonflé par le retour aléatoire de HalfCheetah (−270,7) : le zéro de l'échelle y est arbitraire. Voir [05 §5.2](docs/05-mesures.md).
+
+**Tous les écarts corrigés ensemble** (bras `P`, config de la Table 3 du papier) : **×3,8 de progrès**, 3,3× moins d'échantillons pour un même seuil, 2× plus rapide en temps mur. Plus que le meilleur levier isolé — les leviers ne sont pas additifs.
 
 > Le classement a été **réordonné après mesure**. Avant les runs, `vf_clip_param` était noté « critique » et `lambda_` en second : l'ablation montre l'inverse. Les deux se combinent — c'est `lambda_=1.0` qui rend l'écrêtage de la perte mordant, et lever l'écrêtage seul ne change rien ([05 §5.2](docs/05-mesures.md)).
 

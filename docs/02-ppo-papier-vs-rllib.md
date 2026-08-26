@@ -288,7 +288,7 @@ Incohérence interne au dépôt : APPO, dans le même répertoire, pose `use_kl_
 | retour final | 205 ± 106 | **496 ± 82** |
 | pas pour atteindre un retour de 100 | 234 700 | **133 300** |
 
-×2,4 sur le retour, −43 % d'échantillons, avec **séparation totale sur les trois graines** : le pire run sans KL (391) dépasse le meilleur run avec (354). C'est le deuxième levier le plus fort après `lambda_`.
+×1,6 de progrès au-dessus de l'aléatoire (×2,4 en rapport brut des retours, chiffre gonflé par le retour aléatoire de −270,7 — voir [05 §5.2](05-mesures.md)), −43 % d'échantillons, avec **séparation totale sur les trois graines** : le pire run sans KL (391) dépasse le meilleur run avec (354). C'est le deuxième levier le plus fort après `lambda_`.
 
 La prédiction enregistrée avant les runs était « aucune différence détectable » — le papier ne mesure que la KL *seule*, jamais la KL *ajoutée*. Elle est infirmée : le deuxième frein n'est pas neutre, il coûte cher.
 
@@ -357,7 +357,7 @@ Cette section affirmait auparavant que le critique « n'apprend jamais » et que
 | l'entraînement ne progresse pas | **fausse** — le retour passe de −270 à +205 |
 | lever le clip corrige | **fausse** — `vf_clip_param=inf` seul donne 204 ± 44 contre 205 ± 106. Aucun effet |
 
-L'écrêtage est donc bien réel et massif, mais il n'est **pas** l'écart le plus coûteux : `lambda_=1.0` (×4,0 sur le retour) et la pénalité KL cumulée (×2,4) le dépassent tous les deux. Un fort ratio d'écrêtage ne prédit pas l'échec.
+L'écrêtage est donc bien réel et massif, mais il n'est **pas** l'écart le plus coûteux : `lambda_=1.0` (×2,3 de progrès) et la pénalité KL cumulée (×1,6) le dépassent tous les deux. Un fort ratio d'écrêtage ne prédit pas l'échec.
 
 **Le clip et `lambda_=1.0` s'aggravent mutuellement.** La cible du critique est la cible TD(λ) ([03 §3.2](03-gae-papier-vs-rllib.md)) : avec λ = 1 elle dégénère en Monte-Carlo, donc loin de $`V`$ et à forte variance, donc l'erreur quadratique dépasse presque toujours 10. Avec λ = 0,95 le ratio tombe de 24,0 à 5,0 **sans toucher au clip**. C'est ce qui explique que lever le clip seul ne serve à rien.
 
