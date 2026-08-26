@@ -104,7 +104,7 @@ def main() -> None:
     for env in envs:
         arms = sorted({k[1] for k in runs if k[0] == env})
         print(f"=== {env} " + "=" * (58 - len(env)))
-        header = (f"{'bras':10s} {'graines':7s} {'retour final':>16s} "
+        header = (f"{'bras':10s} {'graines':7s} {'pas':>8s} {'retour final':>16s} "
                   f"{'vf_evar fin':>12s} {'vf_evar max':>12s} "
                   f"{'unclip/clip':>12s} {'pas/s':>7s}")
         print(header)
@@ -129,7 +129,10 @@ def main() -> None:
             sps = [tail_mean(r, K_SPS, frac=0.8) for r in rows_per_seed]
 
             finals[arm] = fin
-            print(f"{arm:10s} {len(seeds):^7d} {agg(fin):>16s} "
+            # Pas franchis par la graine la moins avancee : rend visible un run
+            # encore en cours, dont les chiffres ne veulent rien dire.
+            progress = min(r[-1][K_STEPS] for r in rows_per_seed)
+            print(f"{arm:10s} {len(seeds):^7d} {progress:>8d} {agg(fin):>16s} "
                   f"{agg(evar_fin):>12s} {agg(evar_max):>12s} "
                   f"{agg(ratio):>12s} {fmt(st.fmean([s for s in sps if s == s]) if any(s == s for s in sps) else float('nan'), 0):>7s}")
 

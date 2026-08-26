@@ -309,9 +309,26 @@ $`\lambda = 1`$ est **précisément l'estimateur que le papier GAE a été écri
 
 Rappel des mesures du papier : meilleur $`\lambda \in [0.92, 0.99]`$ sur cart-pole, $`[0.96, 0.99]`$ sur bipède 3D, et *« choosing an appropriate intermediate value of $`\lambda`$ in the range $`[0.9, 0.99]`$ usually results in the best performance »*. Le papier PPO utilise $`\lambda = 0.95`$ dans **toutes** ses tables.
 
-> **En clair** : RLlib livre une voiture avec la boîte de vitesses installée mais bloquée en prise directe. Ça roule, mais on n'a rien de ce pour quoi on l'a achetée. Mettre `lambda_=0.95` est probablement le changement d'une seule ligne le plus rentable sur une config PPO RLlib par défaut.
+> **En clair** : RLlib livre une voiture avec la boîte de vitesses installée mais bloquée en prise directe. Ça roule, mais on n'a rien de ce pour quoi on l'a achetée.
 
 C'est un héritage de `AlgorithmConfig` (valeur générique jamais spécialisée pour PPO), pas une décision documentée. `gamma = 0.99` est en revanche conforme.
+
+#### Mesuré : c'est bien le changement d'une ligne le plus rentable
+
+[05 §5.2](05-mesures.md) l'a testé — un bras d'ablation ne changeant que ce champ, HalfCheetah, 3 graines, 300k pas :
+
+| | `lambda_=1.0` (défaut) | `lambda_=0.95` |
+|---|---|---|
+| retour final | 205 ± 106 | **813 ± 262** |
+| pas pour atteindre un retour de 100 | 234 700 | **144 000** |
+| `vf_explained_var` en fin de run | 0,1 | **0,7** |
+| rapport perte de valeur non-écrêtée / écrêtée | 24,0 | **5,0** |
+
+×4,0 sur le retour, −39 % d'échantillons. C'est le **plus fort des quatre leviers isolés**, devant la pénalité KL cumulée (×2,4), et la séparation est nette sur les trois graines.
+
+**Effet indirect qui n'était pas prévu : λ conditionne l'écrêtage de la perte de valeur.** La cible du critique est la cible TD(λ) (§3.2), pas le retour Monte-Carlo. Avec $`\lambda = 1`$ elle dégénère en Monte-Carlo — loin de $`V`$, à forte variance — donc l'erreur quadratique dépasse presque toujours `vf_clip_param=10` et le gradient du critique est massivement écrêté. Avec $`\lambda = 0.95`$ la cible reste proche de $`V`$ et l'erreur passe souvent sous le seuil. **Le ratio d'écrêtage tombe de 24,0 à 5,0 sans qu'on touche à `vf_clip_param`.**
+
+Corollaire mesuré : lever l'écrêtage seul (`vf_clip_param=inf`, λ inchangé) ne change **rien** au retour — 204 ± 44 contre 205 ± 106. Les deux défauts ne se compensent pas, ils s'aggravent ; et celui qu'il faut corriger en premier est `lambda_`. Voir [02 §4.3](02-ppo-papier-vs-rllib.md).
 
 ### 4.2 ⚠️ `use_gae` est un paramètre mort sur le new API stack
 

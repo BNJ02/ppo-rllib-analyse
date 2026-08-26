@@ -29,6 +29,7 @@ Tous les extraits de code et numéros de ligne proviennent de `ray-project/ray` 
 | 2 | [PPO : papier vs RLlib](docs/02-ppo-papier-vs-rllib.md) | correspondance ligne à ligne, 8 écarts classés par gravité, config de reproduction |
 | 3 | [GAE : papier vs RLlib](docs/03-gae-papier-vs-rllib.md) | ce qu'est GAE, la récursion dans le code, `use_gae` mort et `use_critic` incohérent |
 | 4 | [PPO en multi-agent](docs/04-ppo-multiagent-rllib.md) | ce que le code fait avec N modules ; lu à travers la taxonomie à trois axes de [`marl-rllib-sota`](https://github.com/BNJ02/marl-rllib-sota) |
+| 5 | [**Mesures**](docs/05-mesures.md) | 30 runs, 3 graines : les écarts sont-ils réels ? Prédictions enregistrées **avant** les runs, trois d'entre elles infirmées |
 
 Chaque document alterne formules LaTeX, extraits de code réels, et encarts **« En clair »** en langage courant. Le niveau technique n'est pas abaissé ; l'intuition est ajoutée à côté.
 
@@ -56,18 +57,24 @@ RLlib (2026)  →  les deux, plus 4 mécanismes absents des trois papiers
 
 ## Les écarts, en un tableau
 
-| # | Écart | Gravité | Où |
-|---|---|---|---|
-| 1 | Clipping **et** pénalité KL cumulés par défaut | élevée | [§4.1](docs/02-ppo-papier-vs-rllib.md) |
-| 2 | Clipping de la **perte** de valeur à 10 | **critique** | [§4.3](docs/02-ppo-papier-vs-rllib.md) |
-| 3 | `lambda_=1.0` — désactive GAE | élevée | [§4.1](docs/03-gae-papier-vs-rllib.md) |
-| 4 | Règle d'adaptation de β aux constantes interverties | moyenne | [§4.2](docs/02-ppo-papier-vs-rllib.md) |
-| 5 | Standardisation des avantages, hors papier | moyenne | [§4.4](docs/02-ppo-papier-vs-rllib.md) |
-| 6 | ε=0,3 alors que le papier mesure 0,2 meilleur | moyenne | [§4.5](docs/02-ppo-papier-vs-rllib.md) |
-| 7 | `use_gae` sans effet, `use_critic=False` incohérent | moyenne | [§4.2-4.3](docs/03-gae-papier-vs-rllib.md) |
-| 8 | Pas de région de confiance sur le critique | moyenne | [§4.5](docs/03-gae-papier-vs-rllib.md) |
-| 9 | Architecture 256×256, σ dépendant de l'état | faible | [§4.6](docs/02-ppo-papier-vs-rllib.md) |
-| 10 | Minibatchs circulaires chevauchant deux époques | faible | [§3.4](docs/02-ppo-papier-vs-rllib.md) |
+La colonne **mesuré** vient de [05 §5.2](docs/05-mesures.md) : 30 runs, 3 graines, HalfCheetah/Hopper/Walker2d, 300k pas. Les écarts sans mesure n'ont pas été isolés dans un bras d'ablation.
+
+| # | Écart | Gravité | Mesuré | Où |
+|---|---|---|---|---|
+| 1 | `lambda_=1.0` — désactive GAE | **élevée** | **×4,0 sur le retour** | [§4.1](docs/03-gae-papier-vs-rllib.md) |
+| 2 | Clipping **et** pénalité KL cumulés par défaut | **élevée** | **×2,4 sur le retour** | [§4.1](docs/02-ppo-papier-vs-rllib.md) |
+| 3 | Clipping de la **perte** de valeur à 10 | moyenne | 24× à 623× de gradient écrêté, **mais aucun effet isolé** | [§4.3](docs/02-ppo-papier-vs-rllib.md) |
+| 4 | ε=0,3 alors que le papier mesure 0,2 meilleur | faible | aucun bénéfice à corriger seul | [§4.5](docs/02-ppo-papier-vs-rllib.md) |
+| 5 | Règle d'adaptation de β aux constantes interverties | moyenne | non isolé | [§4.2](docs/02-ppo-papier-vs-rllib.md) |
+| 6 | Standardisation des avantages, hors papier | moyenne | non isolé | [§4.4](docs/02-ppo-papier-vs-rllib.md) |
+| 7 | `use_gae` sans effet, `use_critic=False` incohérent | moyenne | non isolé | [§4.2-4.3](docs/03-gae-papier-vs-rllib.md) |
+| 8 | Pas de région de confiance sur le critique | moyenne | non isolé | [§4.5](docs/03-gae-papier-vs-rllib.md) |
+| 9 | Architecture 256×256, σ dépendant de l'état | faible | non isolé | [§4.6](docs/02-ppo-papier-vs-rllib.md) |
+| 10 | Minibatchs circulaires chevauchant deux époques | faible | non isolé | [§3.4](docs/02-ppo-papier-vs-rllib.md) |
+
+**Tous les écarts corrigés ensemble** (bras `P`, config de la Table 3 du papier) : **×7,4 sur le retour**, 3,3× moins d'échantillons pour un même seuil, et 2× plus rapide en temps mur. Plus que le meilleur levier isolé — les leviers ne sont pas additifs.
+
+> Le classement a été **réordonné après mesure**. Avant les runs, `vf_clip_param` était noté « critique » et `lambda_` en second : l'ablation montre l'inverse. Les deux se combinent — c'est `lambda_=1.0` qui rend l'écrêtage de la perte mordant, et lever l'écrêtage seul ne change rien ([05 §5.2](docs/05-mesures.md)).
 
 Et, spécifiques au multi-agent ([§6](docs/04-ppo-multiagent-rllib.md)) : époques effectives inégales entre modules, avantages standardisés **par module**, `train_batch_size` compté en pas d'environnement, modules gelés payant GAE en entier.
 
@@ -106,8 +113,8 @@ Restent non reproductibles sans code : la standardisation des avantages (câblé
 
 | Métrique | Ce qu'elle révèle |
 |---|---|
-| `vf_explained_var` | proche de 0 → le critique n'apprend pas (écart n°2) |
-| `vf_loss_unclipped` vs `vf_loss` | écart important → le clipping de perte mord |
+| `vf_loss_unclipped` / `vf_loss` | **la métrique fiable** — ratio > 3 → le clipping de perte mord. Mesuré de 24 à 623 aux défauts |
+| `vf_explained_var` | indicatif seulement — logué avec `window=1` (un seul minibatch), trop bruité pour un seuil |
 | `curr_kl_coeff` | dérive vers le haut → la politique bouge trop vite |
 | `num_module_steps_trained` par module | ratio > 2 entre modules → époques effectives inégales (multi-agent) |
 
@@ -117,7 +124,8 @@ Restent non reproductibles sans code : la standardisation des avantages (câblé
 
 - **Framework** : `torch` uniquement. TensorFlow est refusé sur le new API stack (`ValueError` explicite dans `PPOConfig.get_default_learner_class`).
 - **Un seul commit** : les numéros de ligne dérivent. Les noms de symboles (`compute_loss_for_module`, `GeneralAdvantageEstimation`, `MiniBatchCyclicIterator`) restent le point d'entrée fiable.
-- **Aucune expérience lancée.** Ce dépôt est une lecture de code et de papiers, pas un benchmark. Les seuls chiffres empiriques cités proviennent des papiers eux-mêmes ou des mesures de [`marl-rllib-sota`](https://github.com/BNJ02/marl-rllib-sota), et sont attribués comme tels.
+- **Les mesures sont un A/B interne, pas une reproduction du papier.** MuJoCo v1 (mujoco-py) du papier et Gymnasium v5 (MuJoCo 3.x) diffèrent en récompenses, terminaisons et observations : les retours des Tables 1-6 ne sont pas comparables et ne sont jamais comparés. Ce qui est mesuré, ce sont les bras entre eux. Voir [05 §1](docs/05-mesures.md).
+- **Budget de 300 000 pas**, non 1 M comme le papier, sur 3 graines et un seul environnement pour l'ablation complète. Aucun bras n'a convergé. Détail des limites en [05 §5.2](docs/05-mesures.md).
 - **Pas de PDF redistribué.** Les papiers sont liés vers arXiv, pas copiés ici.
 
 ---

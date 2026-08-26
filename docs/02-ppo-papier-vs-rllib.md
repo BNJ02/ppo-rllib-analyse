@@ -279,6 +279,19 @@ C'est un héritage historique : l'implémentation RLlib d'origine s'appuyait sur
 
 Incohérence interne au dépôt : APPO, dans le même répertoire, pose `use_kl_loss = False` par défaut.
 
+#### Mesuré : le deuxième frein coûte un facteur 2,4
+
+[05 §5.2](05-mesures.md), bras d'ablation ne changeant que `use_kl_loss`, HalfCheetah, 3 graines, 300k pas :
+
+| | KL active (défaut) | `use_kl_loss=False` |
+|---|---|---|
+| retour final | 205 ± 106 | **496 ± 82** |
+| pas pour atteindre un retour de 100 | 234 700 | **133 300** |
+
+×2,4 sur le retour, −43 % d'échantillons, avec **séparation totale sur les trois graines** : le pire run sans KL (391) dépasse le meilleur run avec (354). C'est le deuxième levier le plus fort après `lambda_`.
+
+La prédiction enregistrée avant les runs était « aucune différence détectable » — le papier ne mesure que la KL *seule*, jamais la KL *ajoutée*. Elle est infirmée : le deuxième frein n'est pas neutre, il coûte cher.
+
 Pour reproduire le papier : `config.training(use_kl_loss=False, kl_coeff=0.0, clip_param=0.2)`.
 
 ### 4.2 ⚠️ Règle d'adaptation de $`\beta`$ aux constantes interverties
@@ -329,11 +342,26 @@ Ce n'est **ni** le papier PPO (MSE nue), **ni** OpenAI baselines (qui clippe la 
 \big|V_\theta(s_t) - V_t^{targ}\big| > \sqrt{10} \approx 3{,}16 \quad\Longrightarrow\quad \frac{\partial \tilde{L}^{VF}}{\partial \theta} = 0
 ```
 
-> **En clair** : sur un environnement dont les retours sont de l'ordre de 100 ou 1000, le critique se trompe forcément de beaucoup plus que 3,16 au démarrage. Sa perte est donc plafonnée, son gradient est **exactement nul**, et il n'apprend jamais. Et comme c'est lui qui produit les avantages, tout PPO tourne alors sur du bruit. L'entraînement ne plante pas — il ne progresse simplement pas, ce qui est bien plus difficile à diagnostiquer.
+> **En clair** : sur un environnement dont les retours sont de l'ordre de 100 ou 1000, le critique se trompe de beaucoup plus que 3,16 au démarrage. Sa perte est donc plafonnée et une grande part de son gradient est jetée.
 
-RLlib le sait et émet un avertissement lorsque la récompense moyenne dépasse `vf_clip_param` — mais **uniquement sur l'ancienne API stack** (`ppo.py:549-561`). Sur le new API stack, il n'y a **aucun** avertissement. La métrique à surveiller est `vf_explained_var` : si elle reste proche de 0, c'est le symptôme.
+RLlib le sait et émet un avertissement lorsque la récompense moyenne dépasse `vf_clip_param` — mais **uniquement sur l'ancienne API stack** (`ppo.py:549-561`). Sur le new API stack, il n'y a **aucun** avertissement.
 
-Correctif : `vf_clip_param=float("inf")`, ou normaliser les récompenses.
+#### Ce que la mesure a corrigé
+
+Cette section affirmait auparavant que le critique « n'apprend jamais » et que « l'entraînement ne progresse simplement pas ». **Les deux sont faux**, et [05 §5.2](05-mesures.md) le mesure :
+
+| affirmation | mesure (HalfCheetah, 3 graines, 300k pas) |
+|---|---|
+| gradient massivement écrêté | **vraie** — ratio perte non-écrêtée / écrêtée = **24,0** en `D`, exactement 1,0 sans le clip. 623 sur Hopper, 385 sur Walker2d |
+| le critique n'apprend jamais | **fausse** — `vf_explained_var` atteint 0,7 en pic avec le clip actif |
+| l'entraînement ne progresse pas | **fausse** — le retour passe de −270 à +205 |
+| lever le clip corrige | **fausse** — `vf_clip_param=inf` seul donne 204 ± 44 contre 205 ± 106. Aucun effet |
+
+L'écrêtage est donc bien réel et massif, mais il n'est **pas** l'écart le plus coûteux : `lambda_=1.0` (×4,0 sur le retour) et la pénalité KL cumulée (×2,4) le dépassent tous les deux. Un fort ratio d'écrêtage ne prédit pas l'échec.
+
+**Le clip et `lambda_=1.0` s'aggravent mutuellement.** La cible du critique est la cible TD(λ) ([03 §3.2](03-gae-papier-vs-rllib.md)) : avec λ = 1 elle dégénère en Monte-Carlo, donc loin de $`V`$ et à forte variance, donc l'erreur quadratique dépasse presque toujours 10. Avec λ = 0,95 le ratio tombe de 24,0 à 5,0 **sans toucher au clip**. C'est ce qui explique que lever le clip seul ne serve à rien.
+
+Correctif : corriger `lambda_` d'abord ; `vf_clip_param=float("inf")` ensuite, ou normaliser les récompenses. `vf_explained_var` est un mauvais témoin — RLlib la logue avec `window=1`, donc sur un seul minibatch, bien trop bruitée. Surveiller le rapport `vf_loss_unclipped / vf_loss`.
 
 ### 4.4 Standardisation des avantages — absente du papier
 
@@ -380,6 +408,8 @@ Trois écarts méritent commentaire :
 > **En clair** : le papier fait 10 passes prudentes avec des pas moyens. RLlib fait 30 passes avec des pas minuscules et une bande de sécurité plus large. Ça peut converger, mais c'est 3× plus de calcul par échantillon collecté, et ça s'éloigne du régime testé par les auteurs.
 
 **$`\epsilon = 0{,}3`$** — alors que le papier mesure explicitement 0,2 comme meilleur que 0,3 (0,82 vs 0,70 sur le benchmark de la Tab. 1). C'est le seul écart où le papier fournit une mesure directe contredisant le défaut RLlib.
+
+> **Mesuré, et le résultat ne se transporte pas.** [05 §5.2](05-mesures.md) a isolé ce seul champ : $`\epsilon = 0{,}2`$ donne 113 ± 40 contre 205 ± 106 pour le défaut — donc aucun bénéfice, plutôt une tendance défavorable, mais les intervalles se chevauchent et trois graines ne tranchent pas. Le papier mesure 0,2 > 0,3 *dans une config où $`\lambda = 0{,}95`$ et lr = 3e-4*. Transplanté seul dans les défauts RLlib, l'effet disparaît. Un réglage d'hyperparamètre tiré d'un papier ne se transporte pas isolément — il faut corriger $`\lambda`$ et la KL d'abord.
 
 ### 4.6 Architecture par défaut
 
