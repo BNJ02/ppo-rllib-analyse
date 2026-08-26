@@ -165,9 +165,9 @@ Mise en cache dans `_agent_to_module_mapping`, et ce dictionnaire est **transpor
 
 ### 3.2 Ce que le partage change dans PPO, mécaniquement
 
-Soit $`N`$ agents, $`T`$ pas d'environnement collectés, $`|\mathcal{M}|`$ modules.
+Soit $`N`$ agents, $`T`$ pas d'environnement collectés, $`\lvert\mathcal{M}\rvert`$ modules.
 
-| | Full sharing ($`|\mathcal{M}|=1`$) | No sharing ($`|\mathcal{M}|=N`$) |
+| | Full sharing ($`\lvert\mathcal{M}\rvert=1`$) | No sharing ($`\lvert\mathcal{M}\rvert=N`$) |
 |---|---|---|
 | Lignes dans le batch du module | $`N \times T`$ | $`T`$ |
 | Paramètres totaux | $`P`$ | $`N \times P`$ |
@@ -306,7 +306,7 @@ for module_id, module_batch in self._batch.policy_batches.items():
 
 Deux conséquences.
 
-**(a) La taille effective du minibatch est $`|\mathcal{M}| \times`$ `minibatch_size`.** Avec 10 modules indépendants et `minibatch_size=128`, chaque pas de gradient porte sur **1280 lignes**, pas 128. Le défaut PPO `minibatch_size=128` a donc un sens très différent selon le nombre de modules.
+**(a) La taille effective du minibatch est $`\lvert\mathcal{M}\rvert \times`$ `minibatch_size`.** Avec 10 modules indépendants et `minibatch_size=128`, chaque pas de gradient porte sur **1280 lignes**, pas 128. Le défaut PPO `minibatch_size=128` a donc un sens très différent selon le nombre de modules.
 
 **(b) La boucle s'arrête quand le module le PLUS FOURNI a fait `num_epochs` passes.** Les modules moins fournis, eux, bouclent bien plus souvent. Formellement, si $`n_m`$ est le nombre de lignes du module $`m`$ :
 
@@ -464,10 +464,10 @@ V^{\text{centralisé}}_\phi\big(\underbrace{o^1_t \oplus o^2_t \oplus \cdots \op
 | 1 | `num_epochs` effectif $`\propto \max_m n_m / n_m`$ | surapprentissage sur les agents rares | comparer `num_module_steps_trained` entre modules |
 | 2 | Avantages standardisés **par module** | l'échelle relative entre agents disparaît en IL | passer en full sharing si les agents sont comparables |
 | 3 | `train_batch_size` en pas d'**environnement** | batch $`\times N`$, itérations $`\times N`$ | `count_steps_by="agent_steps"` |
-| 4 | Minibatch effectif = $`|\mathcal{M}| \times`$ `minibatch_size` | pas de gradient bien plus gros qu'annoncé | ajuster `minibatch_size` selon $`|\mathcal{M}|`$ |
+| 4 | Minibatch effectif = $`\lvert\mathcal{M}\rvert \times`$ `minibatch_size` | pas de gradient bien plus gros qu'annoncé | ajuster `minibatch_size` selon $`\lvert\mathcal{M}\rvert`$ |
 | 5 | Modules gelés : GAE calculé puis jeté | $`O(k \cdot T)`$ Python gaspillé par itération | filtrer avant GAE si la league est grande |
 | 6 | `gamma` / `lambda_` non réglables par module | un seul horizon pour tous les rôles | sous-classer `PPOLearner.build()` |
-| 7 | `sum(loss_per_module)`, pas de moyenne | gradient $`\times |\mathcal{M}|`$ sur un tronc partagé | vérifier `len(list(p0.parameters()))` |
+| 7 | `sum(loss_per_module)`, pas de moyenne | gradient $`\times \lvert\mathcal{M}\rvert`$ sur un tronc partagé | vérifier `len(list(p0.parameters()))` |
 | 8 | $`N`$ pas fantômes par épisode | biais faible dans la standardisation | négligeable sauf $`N`$ grand, épisodes courts |
 
 À quoi s'ajoutent les écarts **non multi-agent** documentés dans les deux autres rapports, qui frappent chaque module : `vf_clip_param=10.0` qui gèle le critique, `lambda_=1.0` qui désactive GAE, KL cumulée au clipping.

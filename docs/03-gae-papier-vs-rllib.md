@@ -390,7 +390,7 @@ Trois observations :
 
 1. Le clipping de la **perte** (et non de la prédiction) n'est ni dans le papier GAE, ni dans le papier PPO, ni dans OpenAI baselines. C'est une invention RLlib.
 2. Il ne remplace pas la région de confiance : une région de confiance limite le **déplacement** de $`V_\phi`$ par rapport à $`V_{\phi_{old}}`$ ; le clipping de perte limite l'**erreur prise en compte**. Ce n'est pas la même chose du tout.
-3. Il crée un piège sévère : dès que $`|V_\theta - \hat{V}^{targ}| > \sqrt{10} \approx 3{,}16`$, le gradient du critique est **exactement nul**. Sur un environnement à récompenses d'ordre 100, le critique ne démarre jamais — et donc GAE tourne, comme au §4.3, avec un critique inutile.
+3. Il crée un piège sévère : dès que $`\lvert V_\theta - \hat{V}^{targ}\rvert > \sqrt{10} \approx 3{,}16`$, le gradient du critique est **exactement nul**. Sur un environnement à récompenses d'ordre 100, le critique ne démarre jamais — et donc GAE tourne, comme au §4.3, avec un critique inutile.
 
 > **En clair** : le papier freine le critique pour qu'il n'aille pas trop vite. RLlib, lui, lui bande les yeux dès qu'il se trompe de plus de 3,16. L'intention est la même (éviter que le critique déraille), le mécanisme est bien plus grossier, et l'effet de bord est qu'il peut ne jamais apprendre.
 

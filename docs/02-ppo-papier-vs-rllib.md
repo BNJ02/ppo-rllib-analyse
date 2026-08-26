@@ -22,7 +22,7 @@ Le problème à résoudre : en apprentissage par renforcement, on améliore une 
 L^{CLIP}(\theta) = \hat{\mathbb{E}}_t\Big[\min\big(r_t(\theta)\hat{A}_t,\ \mathrm{clip}(r_t(\theta), 1-\epsilon, 1+\epsilon)\hat{A}_t\big)\Big]
 ```
 
-où $`r_t(\theta) = \dfrac{\pi_\theta(a_t|s_t)}{\pi_{\theta_{old}}(a_t|s_t)}`$ mesure « de combien la nouvelle politique a changé d'avis sur cette action ».
+où $`r_t(\theta) = \dfrac{\pi_\theta(a_t \mid s_t)}{\pi_{\theta_{old}}(a_t \mid s_t)}`$ mesure « de combien la nouvelle politique a changé d'avis sur cette action ».
 
 > **En clair** : tant que la politique reste dans une bande de ±20 % autour de l'ancienne, l'objectif se comporte normalement. Au-delà, il devient **plat** : le gradient tombe à zéro, il n'y a plus rien à gagner à pousser plus loin. On ne l'interdit pas, on le rend sans intérêt. Le `min(...)` fait que ce plafonnement ne joue que dans le sens qui *avantagerait* la politique — on ne clippe jamais dans le sens qui la pénalise. D'où le nom du papier : c'est une **borne inférieure pessimiste** sur l'objectif réel.
 
@@ -34,7 +34,7 @@ Le reste de PPO est de la plomberie éprouvée : N acteurs collectent T pas en p
 
 ### 1.1 L'objectif clippé (§3)
 
-Avec $`r_t(\theta) = \pi_\theta(a_t|s_t) / \pi_{\theta_{old}}(a_t|s_t)`$, donc $`r_t(\theta_{old}) = 1`$ :
+Avec $`r_t(\theta) = \pi_\theta(a_t \mid s_t) / \pi_{\theta_{old}}(a_t \mid s_t)`$, donc $`r_t(\theta_{old}) = 1`$ :
 
 ```math
 L^{CLIP}(\theta) = \hat{\mathbb{E}}_t\Big[\min\big(r_t(\theta)\hat{A}_t,\ \mathrm{clip}(r_t(\theta), 1-\epsilon, 1+\epsilon)\hat{A}_t\big)\Big] \tag{7}

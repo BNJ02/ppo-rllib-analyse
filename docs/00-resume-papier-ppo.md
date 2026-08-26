@@ -23,7 +23,7 @@ On veut améliorer une politique à partir de données collectées par la politi
 
 ## L'idée centrale (§3)
 
-Soit le ratio de vraisemblance $`r_t(\theta) = \dfrac{\pi_\theta(a_t|s_t)}{\pi_{\theta_{old}}(a_t|s_t)}`$, qui vaut 1 avant toute mise à jour.
+Soit le ratio de vraisemblance $`r_t(\theta) = \dfrac{\pi_\theta(a_t \mid s_t)}{\pi_{\theta_{old}}(a_t \mid s_t)}`$, qui vaut 1 avant toute mise à jour.
 
 ```math
 L^{CLIP}(\theta) = \hat{\mathbb{E}}_t\Big[\min\big(r_t(\theta)\hat{A}_t,\ \mathrm{clip}(r_t(\theta), 1-\epsilon, 1+\epsilon)\,\hat{A}_t\big)\Big] \tag{7}

@@ -29,7 +29,7 @@ Le papier n'est pas fait pour être lu linéairement.
 \hat{g} = \hat{\mathbb{E}}_t\big[\nabla_\theta \log \pi_\theta(a_t|s_t)\,\hat{A}_t\big] \tag{1}
 ```
 
-**Comment lire ça.** $`\nabla_\theta\log\pi_\theta(a_t|s_t)`$ est la direction dans l'espace des poids qui **augmente le plus vite** la probabilité de l'action $`a_t`$. On la multiplie par $`\hat{A}_t`$, un nombre signé qui dit si l'action était bonne.
+**Comment lire ça.** $`\nabla_\theta\log\pi_\theta(a_t \mid s_t)`$ est la direction dans l'espace des poids qui **augmente le plus vite** la probabilité de l'action $`a_t`$. On la multiplie par $`\hat{A}_t`$, un nombre signé qui dit si l'action était bonne.
 
 - $`\hat{A}_t = +3`$ → on pousse fort dans la direction qui rend $`a_t`$ plus probable.
 - $`\hat{A}_t = -3`$ → on pousse fort dans la direction opposée.
@@ -152,7 +152,7 @@ pour itération = 1, 2, … :
 
 **La dernière ligne est la clé.** $`\theta_{old}`$ ne bouge **qu'une fois par itération**. Pendant les $`K`$ époques, le dénominateur du ratio reste figé sur la politique qui a réellement collecté les données. C'est ce qui rend $`r_t`$ interprétable et le clipping légitime.
 
-> **Erreur de lecture n°5 :** croire qu'il faut garder une copie du réseau ancien en mémoire. Non — il suffit d'avoir enregistré $`\log\pi_{\theta_{old}}(a_t|s_t)`$ au moment où l'action a été jouée. C'est un scalaire par transition. C'est exactement ce que fait RLlib (`Columns.ACTION_LOGP`).
+> **Erreur de lecture n°5 :** croire qu'il faut garder une copie du réseau ancien en mémoire. Non — il suffit d'avoir enregistré $`\log\pi_{\theta_{old}}(a_t \mid s_t)`$ au moment où l'action a été jouée. C'est un scalaire par transition. C'est exactement ce que fait RLlib (`Columns.ACTION_LOGP`).
 
 **Ordre de grandeur, config MuJoCo** : $`N{=}1`$, $`T{=}2048`$, $`K{=}10`$, $`M{=}64`$ → $`10 \times 2048/64 = 320`$ pas de gradient par itération, sur les mêmes 2048 transitions. Ce facteur 320 est précisément ce que le clipping rend possible.
 
