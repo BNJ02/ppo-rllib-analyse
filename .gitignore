@@ -6,3 +6,8 @@ sota/
 *.tar.gz
 __pycache__/
 .venv/
+benchmarks/.venv/
+benchmarks/logs/SMOKE_*.jsonl
+benchmarks/logs/OMP*_*.jsonl
+benchmarks/logs/GPU_*.jsonl
+__pycache__/

@@ -1,0 +1,23 @@
+[project]
+name = "ppo-rllib-benchmarks"
+version = "0.1.0"
+description = "A/B config par defaut RLlib vs config fidele au papier PPO, plus ablation un-facteur-a-la-fois"
+requires-python = ">=3.10, <3.11"
+dependencies = [
+    "ray[rllib]==2.57.0",
+    "numpy>=1.24, <2.0",
+    "nvidia-cusparselt-cu12>=0.8",
+    "torch>=2.5.0a0",
+    "gymnasium[mujoco]>=1.0",
+]
+# Variante Jetson : python 3.10 impose par le wheel torch NVIDIA (JetPack 6.x),
+# cf. skill jetson-torch-setup. Ray epingle a 2.57.0 : c'est la version dont les
+# defauts PPO ont ete verifies contre docs/02 (test_arms.py le reverifie).
+# mujoco a une roue manylinux_2_28_aarch64 cp310 (3.12.0) -- verifie sur PyPI.
+# pandas/matplotlib/jupyter absents : l'analyse se fait apres rsync des logs.
+
+[tool.uv]
+package = false
+
+[tool.uv.sources]
+torch = { url = "https://developer.download.nvidia.com/compute/redist/jp/v61/pytorch/torch-2.5.0a0+872d972e41.nv24.08.17622132-cp310-cp310-linux_aarch64.whl" }
