@@ -1,0 +1,8 @@
+# clones de travail, non versionnés
+ray/
+sota/
+# papiers : liés vers arXiv, pas redistribués
+*.pdf
+*.tar.gz
+__pycache__/
+.venv/
