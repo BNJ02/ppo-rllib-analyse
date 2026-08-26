@@ -321,7 +321,7 @@ module_advantages = (module_advantages - module_advantages.mean()) / max(
 )
 ```
 
-$$\hat{A}^{(m)} \leftarrow \frac{\hat{A}^{(m)} - \operatorname{mean}\big(\hat{A}^{(m)}\big)}{\max\big(10^{-4},\ \operatorname{std}(\hat{A}^{(m)})\big)}$$
+$$\hat{A}^{(m)} \leftarrow \frac{\hat{A}^{(m)} - \mathrm{mean}\big(\hat{A}^{(m)}\big)}{\max\big(10^{-4},\ \mathrm{std}(\hat{A}^{(m)})\big)}$$
 
 La normalisation est **locale à chaque module**, jamais globale. Trois conséquences, dans l'ordre de gravité :
 

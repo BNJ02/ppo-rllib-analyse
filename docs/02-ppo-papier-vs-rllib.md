@@ -18,7 +18,7 @@ Le problème à résoudre : en apprentissage par renforcement, on améliore une 
 
 **L'idée de PPO** : obtenir le même effet avec de la simple descente de gradient du premier ordre. Au lieu d'interdire les grands pas par une contrainte, on **rend les grands pas inintéressants** en aplatissant l'objectif au-delà d'un seuil.
 
-$$L^{CLIP}(\theta) = \hat{\mathbb{E}}_t\Big[\min\big(r_t(\theta)\hat{A}_t,\ \operatorname{clip}(r_t(\theta), 1-\epsilon, 1+\epsilon)\hat{A}_t\big)\Big]$$
+$$L^{CLIP}(\theta) = \hat{\mathbb{E}}_t\Big[\min\big(r_t(\theta)\hat{A}_t,\ \mathrm{clip}(r_t(\theta), 1-\epsilon, 1+\epsilon)\hat{A}_t\big)\Big]$$
 
 où $r_t(\theta) = \dfrac{\pi_\theta(a_t|s_t)}{\pi_{\theta_{old}}(a_t|s_t)}$ mesure « de combien la nouvelle politique a changé d'avis sur cette action ».
 
@@ -34,7 +34,7 @@ Le reste de PPO est de la plomberie éprouvée : N acteurs collectent T pas en p
 
 Avec $r_t(\theta) = \pi_\theta(a_t|s_t) / \pi_{\theta_{old}}(a_t|s_t)$, donc $r_t(\theta_{old}) = 1$ :
 
-$$L^{CLIP}(\theta) = \hat{\mathbb{E}}_t\Big[\min\big(r_t(\theta)\hat{A}_t,\ \operatorname{clip}(r_t(\theta), 1-\epsilon, 1+\epsilon)\hat{A}_t\big)\Big] \tag{7}$$
+$$L^{CLIP}(\theta) = \hat{\mathbb{E}}_t\Big[\min\big(r_t(\theta)\hat{A}_t,\ \mathrm{clip}(r_t(\theta), 1-\epsilon, 1+\epsilon)\hat{A}_t\big)\Big] \tag{7}$$
 
 Le comportement dépend du signe de l'avantage :
 
@@ -318,7 +318,7 @@ module_advantages = (module_advantages - module_advantages.mean()) / max(
 )
 ```
 
-$$\hat{A}_t \leftarrow \frac{\hat{A}_t - \operatorname{mean}(\hat{A})}{\max\big(10^{-4},\ \operatorname{std}(\hat{A})\big)}$$
+$$\hat{A}_t \leftarrow \frac{\hat{A}_t - \mathrm{mean}(\hat{A})}{\max\big(10^{-4},\ \mathrm{std}(\hat{A})\big)}$$
 
 Pratique standard héritée des baselines, mais absente des deux papiers. Deux conséquences :
 

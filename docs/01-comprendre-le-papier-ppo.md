@@ -73,7 +73,7 @@ $$r_t(\theta) = \frac{\pi_\theta(a_t|s_t)}{\pi_{\theta_{old}}(a_t|s_t)}, \qquad 
 
 ## 4. L'équation (7), décortiquée
 
-$$L^{CLIP}(\theta) = \hat{\mathbb{E}}_t\Big[\min\big(\underbrace{r_t\hat{A}_t}_{A},\ \underbrace{\operatorname{clip}(r_t, 1-\epsilon, 1+\epsilon)\hat{A}_t}_{B}\big)\Big] \tag{7}$$
+$$L^{CLIP}(\theta) = \hat{\mathbb{E}}_t\Big[\min\big(\underbrace{r_t\hat{A}_t}_{A},\ \underbrace{\mathrm{clip}(r_t, 1-\epsilon, 1+\epsilon)\hat{A}_t}_{B}\big)\Big] \tag{7}$$
 
 Prenons $\epsilon = 0{,}2$ et déroulons quatre cas concrets.
 

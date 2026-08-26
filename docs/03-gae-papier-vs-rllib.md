@@ -326,7 +326,7 @@ module_advantages = (module_advantages - module_advantages.mean()) / max(
 )
 ```
 
-$$\hat{A}_t \leftarrow \frac{\hat{A}_t - \operatorname{mean}(\hat{A})}{\max(10^{-4},\ \operatorname{std}(\hat{A}))}$$
+$$\hat{A}_t \leftarrow \frac{\hat{A}_t - \mathrm{mean}(\hat{A})}{\max(10^{-4},\ \mathrm{std}(\hat{A}))}$$
 
 Le papier GAE n'en parle nulle part, et il utilise $\hat{A}$ brut dans le gradient. Deux remarques :
 

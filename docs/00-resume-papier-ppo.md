@@ -8,7 +8,7 @@ Parce que le papier ne propose pas *un* algorithme mais **une famille**. L'abstr
 
 | # | Objectif | Statut dans le papier |
 |---|---|---|
-| 1 | $L^{PG} = \hat{\mathbb{E}}_t[\log\pi_\theta(a_t\|s_t)\hat{A}_t]$ — sans garde-fou | référence négative (score −0,39) |
+| 1 | $L^{PG} = \hat{\mathbb{E}}_t[\log\pi_\theta(a_t \mid s_t)\hat{A}_t]$ — sans garde-fou | référence négative (score −0,39) |
 | 2 | $L^{CLIP}$ — **clipping du ratio** (§3) | **recommandé** (score 0,82) |
 | 3 | $L^{KLPEN}$ — pénalité KL **adaptative** (§4) | alternative, moins bonne (0,74) |
 | 4 | $L^{KLPEN}$ à $\beta$ **fixe** | baseline, moins bonne (0,72) |
@@ -25,7 +25,7 @@ On veut améliorer une politique à partir de données collectées par la politi
 
 Soit le ratio de vraisemblance $r_t(\theta) = \dfrac{\pi_\theta(a_t|s_t)}{\pi_{\theta_{old}}(a_t|s_t)}$, qui vaut 1 avant toute mise à jour.
 
-$$L^{CLIP}(\theta) = \hat{\mathbb{E}}_t\Big[\min\big(r_t(\theta)\hat{A}_t,\ \operatorname{clip}(r_t(\theta), 1-\epsilon, 1+\epsilon)\,\hat{A}_t\big)\Big] \tag{7}$$
+$$L^{CLIP}(\theta) = \hat{\mathbb{E}}_t\Big[\min\big(r_t(\theta)\hat{A}_t,\ \mathrm{clip}(r_t(\theta), 1-\epsilon, 1+\epsilon)\,\hat{A}_t\big)\Big] \tag{7}$$
 
 Au-delà de $\pm\epsilon$, l'objectif devient **plat** : le gradient s'annule, il n'y a plus rien à gagner à s'éloigner. Le `min` fait que ce plafonnement ne joue que dans le sens qui *avantagerait* la politique — d'où une **borne inférieure pessimiste** sur l'objectif réel. On n'interdit pas les grands pas, on les rend sans intérêt.
 
