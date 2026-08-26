@@ -1,0 +1,32 @@
+Client is not authorized to connect to ServerClient is not authorized to connect to ServerClient is not authorized to connect to ServerClient is not authorized to connect to Server/home/bnj/ppo-rllib-analyse/benchmarks/.venv/lib/python3.10/site-packages/numpy/core/getlimits.py:549: UserWarning: The value of the smallest subnormal for <class 'numpy.float32'> type is zero.
+  setattr(self, word, getattr(machar, word).flat[0])
+/home/bnj/ppo-rllib-analyse/benchmarks/.venv/lib/python3.10/site-packages/numpy/core/getlimits.py:89: UserWarning: The value of the smallest subnormal for <class 'numpy.float32'> type is zero.
+  return self._float_to_str(self.smallest_subnormal)
+run_id=PILOT  30 runs  budget=300000 pas/run
+{'hostname': 'jetson', 'platform': 'Linux-5.15.148-tegra-aarch64-with-glibc2.35', 'cpu_count_detected': 6, 'gpu_name': 'Orin', 'torch_version': '2.5.0a0+872d972e41.nv24.08', 'cuda_available': True, 'git_commit': '7fcd7ab'}
+
+=== HalfCheetah-v5/D/seed0 : aucun (défauts RLlib) ===
+  [skip] HalfCheetah-v5/D/seed0 déjà terminé
+=== HalfCheetah-v5/P/seed0 : config fidèle au papier (Table 3) ===
+2026-08-26 10:55:05,361	WARNING algorithm_config.py:5159 -- You are running PPO on the new API stack! This is the new default behavior for this algorithm. If you don't want to use the new API stack, set `config.api_stack(enable_rl_module_and_learner=False,enable_env_runner_and_connector_v2=False)`. For a detailed migration guide, see here: https://docs.ray.io/en/master/rllib/new-api-stack-migration-guide.html
+2026-08-26 10:55:08,004	INFO worker.py:2024 -- Started a local Ray instance.
+/home/bnj/ppo-rllib-analyse/benchmarks/.venv/lib/python3.10/site-packages/numpy/core/getlimits.py:549: UserWarning: The value of the smallest subnormal for <class 'numpy.float64'> type is zero.
+  setattr(self, word, getattr(machar, word).flat[0])
+/home/bnj/ppo-rllib-analyse/benchmarks/.venv/lib/python3.10/site-packages/numpy/core/getlimits.py:89: UserWarning: The value of the smallest subnormal for <class 'numpy.float64'> type is zero.
+  return self._float_to_str(self.smallest_subnormal)
+2026-08-26 10:55:09,501	WARNING rl_module.py:463 -- DeprecationWarning: `RLModule(config=[RLModuleConfig object])` has been deprecated. Use `RLModule(observation_space=.., action_space=.., inference_only=.., model_config=.., catalog_class=..)` instead. This will raise an error in the future!
+2026-08-26 10:55:10,690	WARNING util.py:62 -- Install gputil for GPU system monitoring.
+  it   0 | steps    2048 | return       nan | vf_evar  0.294 |   5.53s
+  it   1 | steps    4096 | return    -395.3 | vf_evar  0.198 |   5.46s
+  it   2 | steps    6144 | return       nan | vf_evar  0.235 |   5.42s
+  it   3 | steps    8192 | return    -328.2 | vf_evar  0.336 |   5.46s
+  it   4 | steps   10240 | return       nan | vf_evar  0.413 |   5.39s
+  it   5 | steps   12288 | return    -291.9 | vf_evar  0.240 |   5.37s
+  it   6 | steps   14336 | return       nan | vf_evar  0.394 |   5.37s
+  it   7 | steps   16384 | return    -326.9 | vf_evar  0.439 |   5.46s
+  it   8 | steps   18432 | return       nan | vf_evar  0.627 |   5.46s
+  it   9 | steps   20480 | return    -302.0 | vf_evar  0.881 |   5.41s
+  it  10 | steps   22528 | return       nan | vf_evar  0.827 |   5.43s
+  it  11 | steps   24576 | return    -225.9 | vf_evar  0.645 |   5.42s
+  it  12 | steps   26624 | return       nan | vf_evar  0.313 |   5.37s
+  it  13 | steps   28672 | return    -194.8 | vf_evar  0.537 |   5.35s

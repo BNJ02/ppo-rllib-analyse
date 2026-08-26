@@ -87,6 +87,18 @@ Sur MuJoCo avec `gamma=0.99`, $`V`$ est de l'ordre de 100 dès le départ.
 **P5 — la config du papier bat les défauts.**
 `P` > `D` sur les trois environnements.
 
+**P6 — `lambda_=1.0` protège partiellement du critique gelé.** *(formulée après le pilote, avant que `D_lambda` n'ait tourné)*
+
+Le pilote montre que `D` progresse malgré un critique qui ne converge pas. Mécanisme candidat : avec `lambda_=1.0`, GAE dégénère en Monte-Carlo ([03 §1.3](03-gae-papier-vs-rllib.md), éq. 18)
+
+```math
+\hat{A}_t = \sum_{l=0}^{\infty}\gamma^l r_{t+l} - V(s_t)
+```
+
+où $`V`$ n'intervient plus que comme **baseline**, jamais comme bootstrap. Un critique faux coûte alors de la variance, pas du biais. Les deux défauts de RLlib se compensent partiellement.
+
+Si c'est vrai, `D_lambda` (λ = 0,95 **avec le clip toujours à 10**) devrait être **moins bon** que `D` : λ < 1 réintroduit une dépendance au critique, précisément celui que le clip empêche d'apprendre. Ce serait l'inverse de P2.
+
 ---
 
 ## 4. Conditions matérielles
@@ -129,7 +141,30 @@ Deux obstacles, tous deux couverts par les notes de la machine :
 
 ## 5. Résultats
 
-> À compléter après le sweep. Rien n'est écrit ici avant que les runs soient terminés.
+### 5.1 Pilote — HalfCheetah, une seule graine
+
+`D` contre `D_vfclip`, 300 000 pas, graine 0. **Une graine : aucune conclusion statistique, seulement un mécanisme et un ordre de grandeur.** Le sweep à trois graines tranche.
+
+| | `D` (`vf_clip_param=10`) | `D_vfclip` (`inf`) |
+|---|---|---|
+| `vf_loss` sur tout le run | **7,1 – 9,9**, collée au plafond de 10 | 91 – 596, libre |
+| `vf_loss_unclipped` | 758 → **967** (aucune tendance à la baisse) | 267 → 596 |
+| ratio non-écrêtée / écrêtée | **34,3** (médiane), pointes à 110 | **1,0** exactement |
+| `vf_explained_var` fin / max | 0,1 / 0,40 (passe plusieurs fois sous 0) | 0,3 / **0,71** |
+| retour final | 116,6 | **178,0** |
+| débit | 187 pas/s | 179 pas/s |
+
+**Le mécanisme est confirmé, et de façon nette.** Dans `D`, la perte de valeur reste plaquée sous son plafond du début à la fin, et la perte non écrêtée **ne décroît jamais** — elle est plus élevée à 284 000 pas qu'à 4 000. Le critique ne converge pas. Le ratio de 34 dit combien de gradient est jeté : 97 % du signal d'erreur.
+
+**Mais la prédiction P1, telle qu'écrite, est infirmée.** Les seuils étaient faux dans les deux sens : `D` monte à 0,40 (prédit : reste sous 0,1) et `D_vfclip` finit à 0,3 (prédit : dépasse 0,5). `vf_explained_var` est logué avec `window=1`, donc mesuré sur un seul minibatch : bien trop bruité pour un test à seuil sur une graine. **Le ratio non-écrêtée / écrêtée est la bonne métrique** — elle sépare 34 de 1,0 sans ambiguïté. Les prochaines prédictions porteront sur elle.
+
+**Et une affirmation du rapport est trop forte.** [02 §4.3](02-ppo-papier-vs-rllib.md) dit que « le critique ne démarre jamais » et que « l'entraînement ne progresse simplement pas ». Faux : `D` passe de −282 à +117. Le critique, lui, ne converge effectivement pas — mais PPO progresse quand même. D'où P6.
+
+Seuil retenu pour `samples_to_threshold` sur HalfCheetah : **retour de 100**. Un seuil de 0 ne discrimine pas (152 000 pas contre 160 000) : la phase initiale est portée par la politique, pas par le critique.
+
+### 5.2 Sweep complet
+
+> À compléter. 30 runs, trois graines.
 
 ---
 
