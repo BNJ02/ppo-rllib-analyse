@@ -2,7 +2,7 @@
 
 **Papier** : *Proximal Policy Optimization Algorithms*, John Schulman, Filip Wolski, Prafulla Dhariwal, Alec Radford, Oleg Klimov (OpenAI), arXiv:1707.06347v2
 **Code analysé** : `ray-project/ray` @ commit `7a5d7f1667f79a907c3106f9347d411285297219` (25/08/2026), répertoire `rllib/`
-**Rapport lié** : [`03-gae-papier-vs-rllib.md`](03-gae-papier-vs-rllib.md) — le papier GAE, qui fournit le $\hat{A}_t$ que PPO consomme
+**Rapport lié** : [`03-gae-papier-vs-rllib.md`](03-gae-papier-vs-rllib.md) — le papier GAE, qui fournit le $`\hat{A}_t`$ que PPO consomme
 
 ---
 
@@ -14,13 +14,15 @@ Le problème à résoudre : en apprentissage par renforcement, on améliore une 
 
 > **En clair** : c'est comme corriger un tir d'artillerie à partir d'une seule observation. Une petite correction, c'est légitime. Une correction énorme fondée sur la même observation, c'est du hasard. Le gradient de politique naïf, lui, ne connaît pas cette limite : si l'avantage est grand, il pousse aussi loin qu'on le laisse aller.
 
-**TRPO** (2015), l'algorithme précédent des mêmes auteurs, résolvait cela avec une **contrainte dure** : « améliore-toi, mais la divergence KL entre l'ancienne et la nouvelle politique doit rester sous $\delta$ ». Mathématiquement propre, mais coûteux (optimisation de second ordre, gradient conjugué, produit hessien-vecteur) et incompatible avec le dropout ou le partage de paramètres.
+**TRPO** (2015), l'algorithme précédent des mêmes auteurs, résolvait cela avec une **contrainte dure** : « améliore-toi, mais la divergence KL entre l'ancienne et la nouvelle politique doit rester sous $`\delta`$ ». Mathématiquement propre, mais coûteux (optimisation de second ordre, gradient conjugué, produit hessien-vecteur) et incompatible avec le dropout ou le partage de paramètres.
 
 **L'idée de PPO** : obtenir le même effet avec de la simple descente de gradient du premier ordre. Au lieu d'interdire les grands pas par une contrainte, on **rend les grands pas inintéressants** en aplatissant l'objectif au-delà d'un seuil.
 
-$$L^{CLIP}(\theta) = \hat{\mathbb{E}}_t\Big[\min\big(r_t(\theta)\hat{A}_t,\ \mathrm{clip}(r_t(\theta), 1-\epsilon, 1+\epsilon)\hat{A}_t\big)\Big]$$
+```math
+L^{CLIP}(\theta) = \hat{\mathbb{E}}_t\Big[\min\big(r_t(\theta)\hat{A}_t,\ \mathrm{clip}(r_t(\theta), 1-\epsilon, 1+\epsilon)\hat{A}_t\big)\Big]
+```
 
-où $r_t(\theta) = \dfrac{\pi_\theta(a_t|s_t)}{\pi_{\theta_{old}}(a_t|s_t)}$ mesure « de combien la nouvelle politique a changé d'avis sur cette action ».
+où $`r_t(\theta) = \dfrac{\pi_\theta(a_t|s_t)}{\pi_{\theta_{old}}(a_t|s_t)}`$ mesure « de combien la nouvelle politique a changé d'avis sur cette action ».
 
 > **En clair** : tant que la politique reste dans une bande de ±20 % autour de l'ancienne, l'objectif se comporte normalement. Au-delà, il devient **plat** : le gradient tombe à zéro, il n'y a plus rien à gagner à pousser plus loin. On ne l'interdit pas, on le rend sans intérêt. Le `min(...)` fait que ce plafonnement ne joue que dans le sens qui *avantagerait* la politique — on ne clippe jamais dans le sens qui la pénalise. D'où le nom du papier : c'est une **borne inférieure pessimiste** sur l'objectif réel.
 
@@ -32,59 +34,71 @@ Le reste de PPO est de la plomberie éprouvée : N acteurs collectent T pas en p
 
 ### 1.1 L'objectif clippé (§3)
 
-Avec $r_t(\theta) = \pi_\theta(a_t|s_t) / \pi_{\theta_{old}}(a_t|s_t)$, donc $r_t(\theta_{old}) = 1$ :
+Avec $`r_t(\theta) = \pi_\theta(a_t|s_t) / \pi_{\theta_{old}}(a_t|s_t)`$, donc $`r_t(\theta_{old}) = 1`$ :
 
-$$L^{CLIP}(\theta) = \hat{\mathbb{E}}_t\Big[\min\big(r_t(\theta)\hat{A}_t,\ \mathrm{clip}(r_t(\theta), 1-\epsilon, 1+\epsilon)\hat{A}_t\big)\Big] \tag{7}$$
+```math
+L^{CLIP}(\theta) = \hat{\mathbb{E}}_t\Big[\min\big(r_t(\theta)\hat{A}_t,\ \mathrm{clip}(r_t(\theta), 1-\epsilon, 1+\epsilon)\hat{A}_t\big)\Big] \tag{7}
+```
 
 Le comportement dépend du signe de l'avantage :
 
-| Signe de $\hat{A}_t$ | Le clipping mord à | Interprétation |
+| Signe de $`\hat{A}_t`$ | Le clipping mord à | Interprétation |
 |---|---|---|
-| $\hat{A}_t > 0$ (bonne action) | $r_t > 1+\epsilon$ | on cesse de récompenser une hausse de probabilité déjà importante |
-| $\hat{A}_t < 0$ (mauvaise action) | $r_t < 1-\epsilon$ | on cesse de récompenser une baisse de probabilité déjà importante |
+| $`\hat{A}_t > 0`$ (bonne action) | $`r_t > 1+\epsilon`$ | on cesse de récompenser une hausse de probabilité déjà importante |
+| $`\hat{A}_t < 0`$ (mauvaise action) | $`r_t < 1-\epsilon`$ | on cesse de récompenser une baisse de probabilité déjà importante |
 
 > **En clair** : dans les deux cas, le gradient devient nul **du côté où la politique s'éloigne trop**. Mais s'il faut revenir en arrière (le ratio est déjà hors de la bande et il faut le ramener), le `min` laisse passer le gradient. C'est un frein asymétrique, pas un mur.
 
 ### 1.2 La pénalité KL adaptative (§4) — **variante alternative**
 
-$$L^{KLPEN}(\theta) = \hat{\mathbb{E}}_t\left[\frac{\pi_\theta(a_t|s_t)}{\pi_{\theta_{old}}(a_t|s_t)}\hat{A}_t - \beta\, \mathrm{KL}\big[\pi_{\theta_{old}}(\cdot|s_t),\, \pi_\theta(\cdot|s_t)\big]\right] \tag{8}$$
+```math
+L^{KLPEN}(\theta) = \hat{\mathbb{E}}_t\left[\frac{\pi_\theta(a_t|s_t)}{\pi_{\theta_{old}}(a_t|s_t)}\hat{A}_t - \beta\, \mathrm{KL}\big[\pi_{\theta_{old}}(\cdot|s_t),\, \pi_\theta(\cdot|s_t)\big]\right] \tag{8}
+```
 
-avec, après chaque mise à jour, $d = \hat{\mathbb{E}}_t\big[\mathrm{KL}[\pi_{\theta_{old}}, \pi_\theta]\big]$ et :
+avec, après chaque mise à jour, $`d = \hat{\mathbb{E}}_t\big[\mathrm{KL}[\pi_{\theta_{old}}, \pi_\theta]\big]`$ et :
 
-$$\beta \leftarrow \begin{cases} \beta / 2 & \text{si } d < d_{targ} / 1{,}5 \\[4pt] \beta \times 2 & \text{si } d > d_{targ} \times 1{,}5 \end{cases}$$
+```math
+\beta \leftarrow \begin{cases} \beta / 2 & \text{si } d < d_{targ} / 1{,}5 \\[4pt] \beta \times 2 & \text{si } d > d_{targ} \times 1{,}5 \end{cases}
+```
 
-> **En clair** : au lieu d'aplatir l'objectif, on taxe la distance à l'ancienne politique. Et comme personne ne sait choisir le taux de taxe $\beta$, on l'ajuste automatiquement : trop de mouvement → on double la taxe ; pas assez → on la divise par deux.
+> **En clair** : au lieu d'aplatir l'objectif, on taxe la distance à l'ancienne politique. Et comme personne ne sait choisir le taux de taxe $`\beta`$, on l'ajuste automatiquement : trop de mouvement → on double la taxe ; pas assez → on la divise par deux.
 
 **Le papier est catégorique** : cette variante est présentée comme une **alternative**, testée, et **jugée inférieure** — *« we found that the KL penalty performed worse than the clipped surrogate objective, however, we've included it here because it's an important baseline »*.
 
 | Réglage | Score normalisé moyen (Tab. 1) |
 |---|---|
 | Sans clipping ni pénalité | −0,39 |
-| **Clipping, $\epsilon = 0{,}2$** | **0,82** |
-| Clipping, $\epsilon = 0{,}1$ | 0,76 |
-| Clipping, $\epsilon = 0{,}3$ | 0,70 |
-| Meilleure KL adaptative ($d_{targ}=0{,}01$) | 0,74 |
-| Meilleure KL fixe ($\beta = 3$) | 0,72 |
+| **Clipping, $`\epsilon = 0{,}2`$** | **0,82** |
+| Clipping, $`\epsilon = 0{,}1`$ | 0,76 |
+| Clipping, $`\epsilon = 0{,}3`$ | 0,70 |
+| Meilleure KL adaptative ($`d_{targ}=0{,}01`$) | 0,74 |
+| Meilleure KL fixe ($`\beta = 3`$) | 0,72 |
 
-Retenir ces deux lignes : **$\epsilon = 0{,}2$ bat $\epsilon = 0{,}3$ (0,82 vs 0,70)**, et **le clipping bat la KL (0,82 vs 0,74)**. Les deux serviront au §4.
+Retenir ces deux lignes : **$`\epsilon = 0{,}2`$ bat $`\epsilon = 0{,}3`$ (0,82 vs 0,70)**, et **le clipping bat la KL (0,82 vs 0,74)**. Les deux serviront au §4.
 
 ### 1.3 L'objectif combiné (§5)
 
-$$L_t^{CLIP+VF+S}(\theta) = \hat{\mathbb{E}}_t\Big[L_t^{CLIP}(\theta) - c_1 L_t^{VF}(\theta) + c_2 S[\pi_\theta](s_t)\Big] \tag{9}$$
+```math
+L_t^{CLIP+VF+S}(\theta) = \hat{\mathbb{E}}_t\Big[L_t^{CLIP}(\theta) - c_1 L_t^{VF}(\theta) + c_2 S[\pi_\theta](s_t)\Big] \tag{9}
+```
 
-avec $L_t^{VF} = \big(V_\theta(s_t) - V_t^{targ}\big)^2$, erreur quadratique **sans aucun clipping**, et $S$ l'entropie de la politique.
+avec $`L_t^{VF} = \big(V_\theta(s_t) - V_t^{targ}\big)^2`$, erreur quadratique **sans aucun clipping**, et $`S`$ l'entropie de la politique.
 
 > **En clair** : trois termes. (1) améliorer la politique, prudemment. (2) apprendre au critique à prédire les retours — c'est lui qui fournit les avantages. (3) une prime à l'indécision, pour que la politique ne se fige pas trop vite sur une seule action et continue d'explorer.
 
-Précision du papier souvent négligée : $c_1$ n'a d'intérêt **que si politique et critique partagent des paramètres**. Dans les expériences MuJoCo ils ne les partagent pas, donc *« coefficient $c_1$ is irrelevant »* et *« we don't use an entropy bonus »* ($c_2 = 0$).
+Précision du papier souvent négligée : $`c_1`$ n'a d'intérêt **que si politique et critique partagent des paramètres**. Dans les expériences MuJoCo ils ne les partagent pas, donc *« coefficient $`c_1`$ is irrelevant »* et *« we don't use an entropy bonus »* ($`c_2 = 0`$).
 
 ### 1.4 GAE tronqué (§5, éq. 11-12)
 
-$$\hat{A}_t = \delta_t + (\gamma\lambda)\delta_{t+1} + \cdots + (\gamma\lambda)^{T-t+1}\delta_{T-1} \tag{11}$$
+```math
+\hat{A}_t = \delta_t + (\gamma\lambda)\delta_{t+1} + \cdots + (\gamma\lambda)^{T-t+1}\delta_{T-1} \tag{11}
+```
 
-$$\delta_t = r_t + \gamma V(s_{t+1}) - V(s_t) \tag{12}$$
+```math
+\delta_t = r_t + \gamma V(s_{t+1}) - V(s_t) \tag{12}
+```
 
-C'est l'estimateur du papier GAE (arXiv:1506.02438), tronqué à l'horizon $T$ du rollout. Voir [`03-gae-papier-vs-rllib.md`](03-gae-papier-vs-rllib.md) pour son analyse détaillée.
+C'est l'estimateur du papier GAE (arXiv:1506.02438), tronqué à l'horizon $`T`$ du rollout. Voir [`03-gae-papier-vs-rllib.md`](03-gae-papier-vs-rllib.md) pour son analyse détaillée.
 
 ### 1.5 Algorithme 1
 
@@ -97,24 +111,24 @@ pour itération = 1, 2, … :
     θ_old ← θ
 ```
 
-> **En clair** : la ligne qui compte est la dernière. $\theta_{old}$ n'est mis à jour **qu'une fois par itération**, à la fin. Pendant les K époques, le dénominateur du ratio reste figé sur la politique qui a réellement produit les données. C'est ce qui rend le ratio interprétable et le clipping légitime.
+> **En clair** : la ligne qui compte est la dernière. $`\theta_{old}`$ n'est mis à jour **qu'une fois par itération**, à la fin. Pendant les K époques, le dénominateur du ratio reste figé sur la politique qui a réellement produit les données. C'est ce qui rend le ratio interprétable et le clipping légitime.
 
 ### 1.6 Hyperparamètres du papier
 
 | | MuJoCo (Tab. 3) | Roboschool (Tab. 4) | Atari (Tab. 5) |
 |---|---|---|---|
-| Horizon $T$ | 2048 | 512 | 128 |
-| Pas Adam | $3\times10^{-4}$ | KL-adaptatif | $2{,}5\times10^{-4}\times\alpha$ |
-| Époques $K$ | 10 | 15 | 3 |
-| Taille minibatch $M$ | 64 | 4096 | $32\times8$ |
-| $\gamma$ | 0,99 | 0,99 | 0,99 |
-| $\lambda$ (GAE) | **0,95** | **0,95** | **0,95** |
-| Acteurs $N$ | 1 | 32 / 128 | 8 |
-| $\epsilon$ (clip) | **0,2** | — | $0{,}1\times\alpha$ |
-| $c_1$ (VF) | non pertinent | — | 1 |
-| $c_2$ (entropie) | 0 | — | 0,01 |
+| Horizon $`T`$ | 2048 | 512 | 128 |
+| Pas Adam | $`3\times10^{-4}`$ | KL-adaptatif | $`2{,}5\times10^{-4}\times\alpha`$ |
+| Époques $`K`$ | 10 | 15 | 3 |
+| Taille minibatch $`M`$ | 64 | 4096 | $`32\times8`$ |
+| $`\gamma`$ | 0,99 | 0,99 | 0,99 |
+| $`\lambda`$ (GAE) | **0,95** | **0,95** | **0,95** |
+| Acteurs $`N`$ | 1 | 32 / 128 | 8 |
+| $`\epsilon`$ (clip) | **0,2** | — | $`0{,}1\times\alpha`$ |
+| $`c_1`$ (VF) | non pertinent | — | 1 |
+| $`c_2`$ (entropie) | 0 | — | 0,01 |
 
-Architecture MuJoCo : MLP $2\times64$, tanh, gaussienne diagonale à écart-type **libre** (indépendant de l'état), **pas de partage de paramètres** politique/critique. $\alpha$ décroît linéairement de 1 à 0 sur Atari.
+Architecture MuJoCo : MLP $`2\times64`$, tanh, gaussienne diagonale à écart-type **libre** (indépendant de l'état), **pas de partage de paramètres** politique/critique. $`\alpha`$ décroît linéairement de 1 à 0 sur Atari.
 
 ---
 
@@ -157,9 +171,11 @@ surrogate_loss = torch.min(
 
 C'est l'équation (7) au caractère près, avec le ratio calculé en espace log pour la stabilité numérique :
 
-$$r_t(\theta) = \exp\big(\log\pi_\theta(a_t|s_t) - \log\pi_{\theta_{old}}(a_t|s_t)\big)$$
+```math
+r_t(\theta) = \exp\big(\log\pi_\theta(a_t|s_t) - \log\pi_{\theta_{old}}(a_t|s_t)\big)
+```
 
-Point crucial : $\log\pi_{\theta_{old}}$ **n'est pas recalculé**. Il est enregistré au moment de l'échantillonnage (`Columns.ACTION_LOGP`, produit par l'EnvRunner) et transporté dans le batch. $\pi_{\theta_{old}}$ est donc bien la politique de collecte, figée pour toute l'itération — la sémantique exacte de l'Algorithme 1.
+Point crucial : $`\log\pi_{\theta_{old}}`$ **n'est pas recalculé**. Il est enregistré au moment de l'échantillonnage (`Columns.ACTION_LOGP`, produit par l'EnvRunner) et transporté dans le batch. $`\pi_{\theta_{old}}`$ est donc bien la politique de collecte, figée pour toute l'itération — la sémantique exacte de l'Algorithme 1.
 
 > **En clair** : RLlib ne garde pas une copie du réseau ancien. Il garde simplement, pour chaque action jouée, la probabilité qu'elle avait au moment où elle a été jouée. C'est suffisant, et bien moins coûteux.
 
@@ -181,15 +197,19 @@ if config.use_kl_loss:
 
 soit, en formules :
 
-$$L^{RLlib} = \hat{\mathbb{E}}_t\Big[-L_t^{CLIP} + c_1 \tilde{L}_t^{VF} - c_2 S[\pi_\theta](s_t)\Big] + \beta\,\overline{\mathrm{KL}}$$
+```math
+L^{RLlib} = \hat{\mathbb{E}}_t\Big[-L_t^{CLIP} + c_1 \tilde{L}_t^{VF} - c_2 S[\pi_\theta](s_t)\Big] + \beta\,\overline{\mathrm{KL}}
+```
 
-Les trois premiers termes sont l'opposé de l'éq. (9) — RLlib **minimise** là où le papier **maximise**. **Le quatrième terme n'est pas dans l'éq. (9)** : voir §4.1. Et $\tilde{L}^{VF}$ n'est pas $L^{VF}$ : voir §4.3.
+Les trois premiers termes sont l'opposé de l'éq. (9) — RLlib **minimise** là où le papier **maximise**. **Le quatrième terme n'est pas dans l'éq. (9)** : voir §4.1. Et $`\tilde{L}^{VF}`$ n'est pas $`L^{VF}`$ : voir §4.3.
 
 ### 3.3 GAE — **conforme, avec un raffinement absent du papier**
 
 `utils/postprocessing/value_predictions.py` implémente la forme récursive de (11)-(12) :
 
-$$\hat{A}_t = \delta_t + \gamma\lambda \cdot \texttt{propagate}_t \cdot \hat{A}_{t+1}$$
+```math
+\hat{A}_t = \delta_t + \gamma\lambda \cdot \texttt{propagate}_t \cdot \hat{A}_{t+1}
+```
 
 ```python
 non_terminal = 1.0 - terminateds
@@ -201,12 +221,12 @@ for t in reversed(...):
 
 Le papier ne distingue pas **terminaison** (l'épisode est vraiment fini) et **troncature** (on a coupé la trajectoire, mais la suite existe). RLlib le fait, et c'est correct :
 
-- `terminated[t]` → pas de $s_{t+1}$, le bootstrap $\gamma V(s_{t+1})$ est annulé dans $\delta_t$ ;
-- `truncated[t]` → $V(s_{t+1})$ reste une prédiction **valide** dans $\delta_t$, mais la récursion GAE ne franchit pas la frontière.
+- `terminated[t]` → pas de $`s_{t+1}`$, le bootstrap $`\gamma V(s_{t+1})`$ est annulé dans $`\delta_t`$ ;
+- `truncated[t]` → $`V(s_{t+1})`$ reste une prédiction **valide** dans $`\delta_t`$, mais la récursion GAE ne franchit pas la frontière.
 
 > **En clair** : quand un épisode est coupé par une limite de temps, faire comme s'il n'y avait plus rien après apprend à l'agent que le temps qui passe est une punition — bug classique. RLlib l'évite.
 
-Le mécanisme de bootstrap est astucieux : `AddOneTsToEpisodesAndTruncate` allonge chaque épisode d'un pas artificiel (dernière observation dupliquée, récompense nulle), ce qui permet de calculer **toutes** les $V(s_t)$ **et** les valeurs de bootstrap en **une seule passe avant** du critique. Un `LOSS_MASK` neutralise ensuite ce pas fantôme dans la perte.
+Le mécanisme de bootstrap est astucieux : `AddOneTsToEpisodesAndTruncate` allonge chaque épisode d'un pas artificiel (dernière observation dupliquée, récompense nulle), ce qui permet de calculer **toutes** les $`V(s_t)`$ **et** les valeurs de bootstrap en **une seule passe avant** du critique. Un `LOSS_MASK` neutralise ensuite ce pas fantôme dans la perte.
 
 ### 3.4 Boucle K époques / minibatchs — **principe conforme, détail différent**
 
@@ -223,13 +243,13 @@ learner_results = self.learner_group.update(
 
 puis `sync_weights(..., inference_only=True)` vers tous les EnvRunners — c'est le `θ_old ← θ` de l'Algorithme 1.
 
-La différence est dans `MiniBatchCyclicIterator` (`utils/minibatch_utils.py:56-175`) : il ne découpe **pas** le batch en $\lceil NT/M \rceil$ minibatchs disjoints par époque. Il fait avancer un curseur **circulaire**, remélange à chaque bouclage, et s'arrête quand chaque échantillon a été vu au moins `num_epochs` fois. Conséquence : **un minibatch peut chevaucher la frontière entre deux époques** (fin du batch mélangé + début du batch remélangé).
+La différence est dans `MiniBatchCyclicIterator` (`utils/minibatch_utils.py:56-175`) : il ne découpe **pas** le batch en $`\lceil NT/M \rceil`$ minibatchs disjoints par époque. Il fait avancer un curseur **circulaire**, remélange à chaque bouclage, et s'arrête quand chaque échantillon a été vu au moins `num_epochs` fois. Conséquence : **un minibatch peut chevaucher la frontière entre deux époques** (fin du batch mélangé + début du batch remélangé).
 
 > **En clair** : équivalent en espérance, différent en pratique. Un échantillon peut apparaître deux fois dans le même minibatch au moment du bouclage, ce qui ne peut pas arriver avec un découpage classique.
 
 ### 3.5 Optimiseur
 
-Adam (`core/learner/torch/torch_learner.py:128`), conforme au papier. Mais **pas de clipping de gradient** par défaut (`grad_clip=None`), et **pas d'annealing linéaire** de $\alpha$ — le schéma Atari (Tab. 5), où le pas d'apprentissage **et** $\epsilon$ décroissent de 1 à 0, doit être reconstruit à la main via un *schedule* sur `lr`, et n'est pas reproductible du tout pour $\epsilon$ (`clip_param` n'accepte pas de schedule).
+Adam (`core/learner/torch/torch_learner.py:128`), conforme au papier. Mais **pas de clipping de gradient** par défaut (`grad_clip=None`), et **pas d'annealing linéaire** de $`\alpha`$ — le schéma Atari (Tab. 5), où le pas d'apprentissage **et** $`\epsilon`$ décroissent de 1 à 0, doit être reconstruit à la main via un *schedule* sur `lr`, et n'est pas reproductible du tout pour $`\epsilon`$ (`clip_param` n'accepte pas de schedule).
 
 ---
 
@@ -247,19 +267,21 @@ self.kl_target = 0.01
 
 L'objectif effectivement optimisé par défaut est donc :
 
-$$L^{CLIP} - c_1 L^{VF} + c_2 S - \beta\,\mathrm{KL}\big[\pi_{old},\pi_\theta\big]$$
+```math
+L^{CLIP} - c_1 L^{VF} + c_2 S - \beta\,\mathrm{KL}\big[\pi_{old},\pi_\theta\big]
+```
 
 c'est-à-dire **l'éq. (9) et l'éq. (8) additionnées**. Cette combinaison ne correspond à **aucune** des variantes évaluées dans le papier — et le papier mesure que la composante KL, seule, est **moins bonne** que le clipping (0,74 vs 0,82, Tab. 1).
 
 > **En clair** : le papier propose deux freins et démontre que le premier est meilleur. RLlib installe les deux en même temps. Ce n'est pas absurde en soi — deux freins freinent —, mais ce n'est pas PPO tel que publié, et le comportement obtenu n'a été mesuré nulle part.
 
-C'est un héritage historique : l'implémentation RLlib d'origine s'appuyait sur TRPO / $L^{KLPEN}$, et le clipping a été ajouté par-dessus sans retirer la KL. Le README l'assume à demi-mot (« *There are two formulations of PPO, which are both implemented in RLlib* ») mais ne dit pas qu'elles sont **actives ensemble**.
+C'est un héritage historique : l'implémentation RLlib d'origine s'appuyait sur TRPO / $`L^{KLPEN}`$, et le clipping a été ajouté par-dessus sans retirer la KL. Le README l'assume à demi-mot (« *There are two formulations of PPO, which are both implemented in RLlib* ») mais ne dit pas qu'elles sont **actives ensemble**.
 
 Incohérence interne au dépôt : APPO, dans le même répertoire, pose `use_kl_loss = False` par défaut.
 
 Pour reproduire le papier : `config.training(use_kl_loss=False, kl_coeff=0.0, clip_param=0.2)`.
 
-### 4.2 ⚠️ Règle d'adaptation de $\beta$ aux constantes interverties
+### 4.2 ⚠️ Règle d'adaptation de $`\beta`$ aux constantes interverties
 
 `ppo_torch_learner.py:162-166` :
 
@@ -271,18 +293,20 @@ elif kl_loss < 0.5 * config.kl_target:
     curr_var.data *= 0.5
 ```
 
-$$\text{RLlib :}\quad \beta \leftarrow \begin{cases} 1{,}5\,\beta & \text{si } d > 2\,d_{targ}\\ 0{,}5\,\beta & \text{si } d < 0{,}5\,d_{targ}\end{cases} \qquad\qquad \text{Papier :}\quad \beta \leftarrow \begin{cases} 2\,\beta & \text{si } d > 1{,}5\,d_{targ}\\ 0{,}5\,\beta & \text{si } d < d_{targ}/1{,}5\end{cases}$$
+```math
+\text{RLlib :}\quad \beta \leftarrow \begin{cases} 1{,}5\,\beta & \text{si } d > 2\,d_{targ}\\ 0{,}5\,\beta & \text{si } d < 0{,}5\,d_{targ}\end{cases} \qquad\qquad \text{Papier :}\quad \beta \leftarrow \begin{cases} 2\,\beta & \text{si } d > 1{,}5\,d_{targ}\\ 0{,}5\,\beta & \text{si } d < d_{targ}/1{,}5\end{cases}
+```
 
 | | Seuil haut | Facteur haut | Seuil bas | Facteur bas |
 |---|---|---|---|---|
-| Papier §4 | $1{,}5\,d_{targ}$ | $\times 2$ | $d_{targ}/1{,}5$ | $\div 2$ |
-| RLlib | $2\,d_{targ}$ | $\times 1{,}5$ | $0{,}5\,d_{targ}$ | $\times 0{,}5$ |
+| Papier §4 | $`1{,}5\,d_{targ}`$ | $`\times 2`$ | $`d_{targ}/1{,}5`$ | $`\div 2`$ |
+| RLlib | $`2\,d_{targ}`$ | $`\times 1{,}5`$ | $`0{,}5\,d_{targ}`$ | $`\times 0{,}5`$ |
 
-Les constantes 1,5 et 2 sont **interverties** entre seuil et facteur. De plus, le papier est **symétrique** ($\times2$ / $\div2$) alors que RLlib ne l'est pas ($\times1{,}5$ à la hausse, $\times0{,}5$ à la baisse) : le contrôleur relâche la contrainte plus vite qu'il ne la resserre.
+Les constantes 1,5 et 2 sont **interverties** entre seuil et facteur. De plus, le papier est **symétrique** ($`\times2`$ / $`\div2`$) alors que RLlib ne l'est pas ($`\times1{,}5`$ à la hausse, $`\times0{,}5`$ à la baisse) : le contrôleur relâche la contrainte plus vite qu'il ne la resserre.
 
 > **En clair** : le régulateur réagit mollement quand la politique dérive trop, et énergiquement quand elle ne bouge pas assez. Ce n'est pas le comportement décrit dans le papier. Le `TODO (Kourosh) why not 2?` laissé dans le code montre que l'écart n'est pas assumé mais subi.
 
-Deuxième différence, plus insidieuse : le papier met $\beta$ à jour **une fois par mise à jour de politique**, à partir de $d$ calculé sur **tout le batch**. RLlib le fait dans `after_gradient_based_update` (`ppo_learner.py:87-116`) à partir de la dernière valeur loggée de `mean_kl_loss` avec `window=1` — c'est-à-dire le KL du **dernier minibatch de la dernière époque**. Estimation nettement plus bruitée, sur 128 échantillons au lieu de 4000.
+Deuxième différence, plus insidieuse : le papier met $`\beta`$ à jour **une fois par mise à jour de politique**, à partir de $`d`$ calculé sur **tout le batch**. RLlib le fait dans `after_gradient_based_update` (`ppo_learner.py:87-116`) à partir de la dernière valeur loggée de `mean_kl_loss` avec `window=1` — c'est-à-dire le KL du **dernier minibatch de la dernière époque**. Estimation nettement plus bruitée, sur 128 échantillons au lieu de 4000.
 
 ### 4.3 ⚠️ Clipping de la **perte** de valeur — absent du papier
 
@@ -293,13 +317,17 @@ vf_loss = torch.pow(value_fn_out - batch[Postprocessing.VALUE_TARGETS], 2.0)
 vf_loss_clipped = torch.clamp(vf_loss, 0, config.vf_clip_param)   # défaut : 10.0
 ```
 
-$$\tilde{L}_t^{VF} = \min\Big(\big(V_\theta(s_t) - V_t^{targ}\big)^2,\ \texttt{vf\_clip\_param}\Big) \qquad \text{au lieu de} \qquad L_t^{VF} = \big(V_\theta(s_t) - V_t^{targ}\big)^2$$
+```math
+\tilde{L}_t^{VF} = \min\Big(\big(V_\theta(s_t) - V_t^{targ}\big)^2,\ \texttt{vf\_clip\_param}\Big) \qquad \text{au lieu de} \qquad L_t^{VF} = \big(V_\theta(s_t) - V_t^{targ}\big)^2
+```
 
-Ce n'est **ni** le papier PPO (MSE nue), **ni** OpenAI baselines (qui clippe la **prédiction** autour de $V_{old}$, pas la perte), **ni** le papier GAE (qui utilise une région de confiance).
+Ce n'est **ni** le papier PPO (MSE nue), **ni** OpenAI baselines (qui clippe la **prédiction** autour de $`V_{old}`$, pas la perte), **ni** le papier GAE (qui utilise une région de confiance).
 
 **Conséquence pratique**, et c'est le piège n°1 de PPO dans RLlib :
 
-$$\big|V_\theta(s_t) - V_t^{targ}\big| > \sqrt{10} \approx 3{,}16 \quad\Longrightarrow\quad \frac{\partial \tilde{L}^{VF}}{\partial \theta} = 0$$
+```math
+\big|V_\theta(s_t) - V_t^{targ}\big| > \sqrt{10} \approx 3{,}16 \quad\Longrightarrow\quad \frac{\partial \tilde{L}^{VF}}{\partial \theta} = 0
+```
 
 > **En clair** : sur un environnement dont les retours sont de l'ordre de 100 ou 1000, le critique se trompe forcément de beaucoup plus que 3,16 au démarrage. Sa perte est donc plafonnée, son gradient est **exactement nul**, et il n'apprend jamais. Et comme c'est lui qui produit les avantages, tout PPO tourne alors sur du bruit. L'entraînement ne plante pas — il ne progresse simplement pas, ce qui est bien plus difficile à diagnostiquer.
 
@@ -318,11 +346,13 @@ module_advantages = (module_advantages - module_advantages.mean()) / max(
 )
 ```
 
-$$\hat{A}_t \leftarrow \frac{\hat{A}_t - \mathrm{mean}(\hat{A})}{\max\big(10^{-4},\ \mathrm{std}(\hat{A})\big)}$$
+```math
+\hat{A}_t \leftarrow \frac{\hat{A}_t - \mathrm{mean}(\hat{A})}{\max\big(10^{-4},\ \mathrm{std}(\hat{A})\big)}
+```
 
 Pratique standard héritée des baselines, mais absente des deux papiers. Deux conséquences :
 
-1. **Elle interagit avec $\epsilon$.** Le clipping de PPO s'applique au ratio, mais le gradient est proportionnel à $\hat{A}_t$. En renormalisant $\hat{A}$, on change l'amplitude des pas, donc la vitesse à laquelle le ratio atteint la bande $[1-\epsilon, 1+\epsilon]$. Le même $\epsilon=0{,}2$ ne signifie plus la même chose selon que les avantages sont normalisés ou non.
+1. **Elle interagit avec $`\epsilon`$.** Le clipping de PPO s'applique au ratio, mais le gradient est proportionnel à $`\hat{A}_t`$. En renormalisant $`\hat{A}`$, on change l'amplitude des pas, donc la vitesse à laquelle le ratio atteint la bande $`[1-\epsilon, 1+\epsilon]`$. Le même $`\epsilon=0{,}2`$ ne signifie plus la même chose selon que les avantages sont normalisés ou non.
 2. **Portée et détails** : la normalisation est faite sur **tout le batch d'entraînement**, avant découpage en minibatchs, et **inclut les pas fantômes** de `AddOneTsToEpisodesAndTruncate` dans le calcul de moyenne/écart-type (le masque n'agit qu'au niveau de la perte). Biais faible mais réel.
 
 Sur l'ancienne API stack, la même opération est faite ailleurs, dans la boucle d'algorithme : `standardize_fields(train_batch, ["advantages"])` (`ppo.py:495`).
@@ -331,36 +361,36 @@ Sur l'ancienne API stack, la même opération est faite ailleurs, dans la boucle
 
 | Hyperparamètre | Papier (MuJoCo) | RLlib défaut | Réf. |
 |---|---|---|---|
-| $\epsilon$ (`clip_param`) | **0,2** | **0,3** | `ppo.py:140` |
-| $\lambda$ (`lambda_`) | **0,95** | **1,0** | `ppo.py:134` |
-| pas Adam (`lr`) | **$3\times10^{-4}$** | **$5\times10^{-5}$** | `ppo.py:124` |
-| époques $K$ (`num_epochs`) | 10 (15 Roboschool, 3 Atari) | **30** | `ppo.py:131` |
-| taille minibatch $M$ | 64 | 128 | `ppo.py:132` |
-| taille batch $NT$ | 2048 | 4000 | `ppo.py:126` |
-| $\gamma$ | 0,99 | 0,99 ✓ | `algorithm_config.py:384` |
-| $c_2$ (`entropy_coeff`) | 0 (MuJoCo) / 0,01 (Atari) | 0,0 ✓ | `ppo.py:139` |
-| $c_1$ (`vf_loss_coeff`) | 1 | 1,0 ✓ | `ppo.py:138` |
+| $`\epsilon`$ (`clip_param`) | **0,2** | **0,3** | `ppo.py:140` |
+| $`\lambda`$ (`lambda_`) | **0,95** | **1,0** | `ppo.py:134` |
+| pas Adam (`lr`) | **$`3\times10^{-4}`$** | **$`5\times10^{-5}`$** | `ppo.py:124` |
+| époques $`K`$ (`num_epochs`) | 10 (15 Roboschool, 3 Atari) | **30** | `ppo.py:131` |
+| taille minibatch $`M`$ | 64 | 128 | `ppo.py:132` |
+| taille batch $`NT`$ | 2048 | 4000 | `ppo.py:126` |
+| $`\gamma`$ | 0,99 | 0,99 ✓ | `algorithm_config.py:384` |
+| $`c_2`$ (`entropy_coeff`) | 0 (MuJoCo) / 0,01 (Atari) | 0,0 ✓ | `ppo.py:139` |
+| $`c_1`$ (`vf_loss_coeff`) | 1 | 1,0 ✓ | `ppo.py:138` |
 
 Trois écarts méritent commentaire :
 
-**$\lambda = 1{,}0$** — le plus lourd de conséquences. $\lambda=1$ réduit GAE au retour Monte-Carlo moins baseline (éq. 18 du papier GAE) : variance maximale, c'est-à-dire **exactement l'estimateur que le papier GAE a été écrit pour remplacer**. Le papier PPO utilise 0,95 dans toutes ses tables. Ce défaut vient de `AlgorithmConfig` et n'a jamais été spécialisé pour PPO.
+**$`\lambda = 1{,}0`$** — le plus lourd de conséquences. $`\lambda=1`$ réduit GAE au retour Monte-Carlo moins baseline (éq. 18 du papier GAE) : variance maximale, c'est-à-dire **exactement l'estimateur que le papier GAE a été écrit pour remplacer**. Le papier PPO utilise 0,95 dans toutes ses tables. Ce défaut vient de `AlgorithmConfig` et n'a jamais été spécialisé pour PPO.
 
-**`num_epochs = 30` avec `lr = 5e-5`** — RLlib compense un pas d'apprentissage 6× plus petit par 3× plus de passes sur les mêmes données. Combiné à $\epsilon = 0{,}3$ (plus permissif que 0,2), le régime d'optimisation est nettement plus agressif en nombre de réutilisations du batch.
+**`num_epochs = 30` avec `lr = 5e-5`** — RLlib compense un pas d'apprentissage 6× plus petit par 3× plus de passes sur les mêmes données. Combiné à $`\epsilon = 0{,}3`$ (plus permissif que 0,2), le régime d'optimisation est nettement plus agressif en nombre de réutilisations du batch.
 
 > **En clair** : le papier fait 10 passes prudentes avec des pas moyens. RLlib fait 30 passes avec des pas minuscules et une bande de sécurité plus large. Ça peut converger, mais c'est 3× plus de calcul par échantillon collecté, et ça s'éloigne du régime testé par les auteurs.
 
-**$\epsilon = 0{,}3$** — alors que le papier mesure explicitement 0,2 comme meilleur que 0,3 (0,82 vs 0,70 sur le benchmark de la Tab. 1). C'est le seul écart où le papier fournit une mesure directe contredisant le défaut RLlib.
+**$`\epsilon = 0{,}3`$** — alors que le papier mesure explicitement 0,2 comme meilleur que 0,3 (0,82 vs 0,70 sur le benchmark de la Tab. 1). C'est le seul écart où le papier fournit une mesure directe contredisant le défaut RLlib.
 
 ### 4.6 Architecture par défaut
 
 | | Papier (MuJoCo) | RLlib défaut |
 |---|---|---|
-| couches cachées | $2\times64$ | **$2\times256$** (`fcnet_hiddens=[256, 256]`) |
+| couches cachées | $`2\times64`$ | **$`2\times256`$** (`fcnet_hiddens=[256, 256]`) |
 | activation | tanh | tanh ✓ |
 | têtes pi/vf | — | linéaires directes (`head_fcnet_hiddens=[]`) |
 | partage politique/critique | **non** | **non** pour PPO ✓ |
 | écart-type gaussien | **libre** (indépendant de l'état) | **dépendant de l'état** (`free_log_std=False`) |
-| clipping de $\log\sigma$ | non | oui, $\pm20$ (`log_std_clip_param=20.0`) |
+| clipping de $`\log\sigma`$ | non | oui, $`\pm20`$ (`log_std_clip_param=20.0`) |
 
 Le partage mérite une note. `DefaultModelConfig.vf_share_layers` vaut `True` globalement, mais PPO le force à `False` :
 
@@ -370,7 +400,7 @@ def _model_config_auto_includes(self):
     return super()._model_config_auto_includes | {"vf_share_layers": False}
 ```
 
-**Conforme au papier** — et cela rend `vf_loss_coeff` sans effet réel, exactement comme le note le papier pour $c_1$.
+**Conforme au papier** — et cela rend `vf_loss_coeff` sans effet réel, exactement comme le note le papier pour $`c_1`$.
 
 En revanche `free_log_std=False` est un écart : le papier utilise des écarts-types **variables mais indépendants de l'état**, suivant [Sch+15b; Dua+16]. RLlib le propose (`free_log_std=True`) sans l'activer par défaut.
 
@@ -380,7 +410,7 @@ En revanche `free_log_std=False` est un écart : le papier utilise des écarts-t
 
 - **Multi-agent** : la perte est calculée par `module_id`, avec un `kl_coeff` et un scheduler d'entropie **par module** (`ppo_learner.py:31-52`).
 - **Politiques récurrentes** : zero-padding, `SEQ_LENS`, `LOSS_MASK`, encodeurs LSTM/attention. Le papier mentionne le style RNN de [Mni+16] sans en donner la mécanique.
-- **Deux axes de distribution** : `num_env_runners` (les $N$ acteurs du papier) **et** `num_learners` (parallélisme de gradient, absent du papier). Le batch total vaut `train_batch_size_per_learner × num_learners`.
+- **Deux axes de distribution** : `num_env_runners` (les $`N`$ acteurs du papier) **et** `num_learners` (parallélisme de gradient, absent du papier). Le batch total vaut `train_batch_size_per_learner × num_learners`.
 - **Schedulers** sur `lr` et `entropy_coeff`.
 - **Métriques** : `vf_explained_var`, `vf_loss_unclipped`, `curr_kl_coeff` — précisément les instruments qui permettent de diagnostiquer les écarts ci-dessus.
 - **Drapeaux morts ou incohérents** : `use_gae` est sans effet sur le new stack, `use_critic=False` laisse un critique non entraîné piloter les avantages. Détaillé dans [`03-gae-papier-vs-rllib.md`](03-gae-papier-vs-rllib.md) §4.2-4.3.
@@ -399,9 +429,9 @@ self.use_circular_buffer = True
 self.grad_clip = 40.0
 ```
 
-PPO y devient un algorithme **hors-politique** : la correction V-trace remplace l'hypothèse « les données viennent de $\pi_{old}$ » sur laquelle repose tout l'argument du surrogate clippé. Le réseau cible et le tampon circulaire n'ont pas d'équivalent dans le papier. C'est une descendance d'IMPALA autant que de PPO.
+PPO y devient un algorithme **hors-politique** : la correction V-trace remplace l'hypothèse « les données viennent de $`\pi_{old}`$ » sur laquelle repose tout l'argument du surrogate clippé. Le réseau cible et le tampon circulaire n'ont pas d'équivalent dans le papier. C'est une descendance d'IMPALA autant que de PPO.
 
-> **En clair** : APPO n'attend plus que tous les acteurs aient fini pour apprendre — il apprend en continu sur des données légèrement périmées. Le ratio $\pi_\theta/\pi_{old}$ n'a alors plus la même signification, d'où V-trace pour corriger le décalage.
+> **En clair** : APPO n'attend plus que tous les acteurs aient fini pour apprendre — il apprend en continu sur des données légèrement périmées. Le ratio $`\pi_\theta/\pi_{old}`$ n'a alors plus la même signification, d'où V-trace pour corriger le décalage.
 
 ---
 
@@ -409,24 +439,24 @@ PPO y devient un algorithme **hors-politique** : la correction V-trace remplace 
 
 ### Fidèle au papier
 - Ratio de vraisemblance et objectif clippé, éq. (7) au caractère près.
-- $\pi_{\theta_{old}}$ = politique de collecte, figée par itération, resynchronisée en fin d'itération.
+- $`\pi_{\theta_{old}}`$ = politique de collecte, figée par itération, resynchronisée en fin d'itération.
 - GAE (11)-(12), avec en plus une gestion terminated/truncated que le papier n'aborde pas.
 - Perte combinée politique + valeur + entropie, éq. (9).
-- Adam, $K$ époques de SGD par minibatch, structure de l'Algorithme 1.
+- Adam, $`K`$ époques de SGD par minibatch, structure de l'Algorithme 1.
 - Pas de partage de paramètres politique/critique pour PPO.
-- $\gamma = 0{,}99$, $c_1 = 1$, $c_2 = 0$.
+- $`\gamma = 0{,}99`$, $`c_1 = 1`$, $`c_2 = 0`$.
 
 ### Écarts substantiels
 
 | # | Écart | Gravité |
 |---|---|---|
 | 1 | **Clipping + pénalité KL cumulés** par défaut — objectif hybride jamais évalué dans le papier, dont la composante KL y est mesurée comme inférieure | élevée |
-| 2 | **Clipping de la perte VF à 10** — hors des trois papiers ; annule le gradient du critique dès $\|V-V^{targ}\|>3{,}16$ | **critique** |
-| 3 | **$\lambda = 1{,}0$** par défaut — désactive de fait GAE | élevée |
-| 4 | **Règle $\beta$ aux constantes interverties** (2/1,5 au lieu de 1,5/2), asymétrique, estimée sur le dernier minibatch | moyenne |
-| 5 | **Standardisation des avantages** — hors papier, modifie l'échelle effective de $\epsilon$ | moyenne |
-| 6 | **$\epsilon = 0{,}3$** alors que le papier mesure 0,2 meilleur ; **lr $5\times10^{-5}$** vs $3\times10^{-4}$ ; **30 époques** vs 10 | moyenne |
-| 7 | **Architecture** $256\times256$ vs $64\times64$ ; écart-type dépendant de l'état vs paramètre libre | faible |
+| 2 | **Clipping de la perte VF à 10** — hors des trois papiers ; annule le gradient du critique dès $`\|V-V^{targ}\|>3{,}16`$ | **critique** |
+| 3 | **$`\lambda = 1{,}0`$** par défaut — désactive de fait GAE | élevée |
+| 4 | **Règle $`\beta`$ aux constantes interverties** (2/1,5 au lieu de 1,5/2), asymétrique, estimée sur le dernier minibatch | moyenne |
+| 5 | **Standardisation des avantages** — hors papier, modifie l'échelle effective de $`\epsilon`$ | moyenne |
+| 6 | **$`\epsilon = 0{,}3`$** alors que le papier mesure 0,2 meilleur ; **lr $`5\times10^{-5}`$** vs $`3\times10^{-4}`$ ; **30 époques** vs 10 | moyenne |
+| 7 | **Architecture** $`256\times256`$ vs $`64\times64`$ ; écart-type dépendant de l'état vs paramètre libre | faible |
 | 8 | **Minibatchs circulaires** pouvant chevaucher deux époques | faible |
 
 ### Recette pour se rapprocher du papier (MuJoCo, Tab. 3)
@@ -475,7 +505,7 @@ config = (
 
 - la standardisation des avantages (câblée dans `GeneralAdvantageEstimation` ; il faut sous-classer le connecteur et remonter le pipeline dans `PPOLearner.build()`) ;
 - le découpage exact des minibatchs (`MiniBatchCyclicIterator` n'est pas configurable) ;
-- l'annealing linéaire de $\epsilon$ du protocole Atari (`clip_param` n'accepte pas de schedule).
+- l'annealing linéaire de $`\epsilon`$ du protocole Atari (`clip_param` n'accepte pas de schedule).
 
 **Métriques à surveiller pour vérifier que tout va bien** :
 
