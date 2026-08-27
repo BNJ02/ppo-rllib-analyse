@@ -13,3 +13,7 @@ benchmarks/.venv/
 benchmarks/logs/*.jsonl
 benchmarks/logs/*.out
 __pycache__/
+
+# artefacts de rendu PDF (tools/md2pdf.mjs)
+build/
+tools/node_modules/
