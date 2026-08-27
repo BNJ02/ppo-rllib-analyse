@@ -11,9 +11,10 @@ def slug(t):
 
 root = sys.argv[1] if len(sys.argv) > 1 else "."
 anch = {}
-for d, _, fs in os.walk(root):
-    if "/.git" in d or "/.venv" in d:
-        continue
+SKIP = {".git", ".venv", "node_modules", "build", "__pycache__", "ray", "sota"}
+
+for d, dirs, fs in os.walk(root):
+    dirs[:] = [x for x in dirs if x not in SKIP]   # elague : os.walk relit `dirs`
     for f in fs:
         if f.endswith(".md"):
             p = os.path.normpath(os.path.join(d, f))
@@ -23,9 +24,12 @@ bad = []
 for p in sorted(anch):
     base = os.path.dirname(p)
     txt = open(p).read()
-    # ignore les blocs math/code, ou "](a_t|s_t)" ressemble a un lien
+    # Ignore tout ce qui est du code ou des maths : "](a_t|s_t)" y ressemble a
+    # un lien sans en etre un. L'ordre compte -- les blocs d'abord, sinon un
+    # backtick simple a l'interieur d'un bloc coupe la paire.
     txt = re.sub(r'```.*?```', '', txt, flags=re.S)
     txt = re.sub(r'\$`.*?`\$', '', txt, flags=re.S)
+    txt = re.sub(r'`[^`\n]*`', '', txt)
     for m in re.finditer(r'\]\(([^)\s]+)\)', txt):
         t = m.group(1)
         if t.startswith(('http', 'mailto', '#!')):

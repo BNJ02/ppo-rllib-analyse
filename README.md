@@ -35,6 +35,8 @@ Tous les extraits de code et numéros de ligne proviennent de `ray-project/ray` 
 
 Chaque document alterne formules LaTeX, extraits de code réels, et encarts **« En clair »** en langage courant. Le niveau technique n'est pas abaissé ; l'intuition est ajoutée à côté.
 
+> **Les deux fiches de cours sont aussi disponibles en PDF** — [release v1.0.0](https://github.com/BNJ02/ppo-rllib-analyse/releases/tag/v1.0.0), prêtes à imprimer, 15 et 22 pages. Regénérables avec `node tools/md2pdf.mjs <fichier.md> <sortie.pdf>`.
+
 ---
 
 ## Les trois papiers
