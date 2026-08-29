@@ -6,15 +6,29 @@ Le papier propose **une nouvelle famille de méthodes de gradient de politique**
 
 ## D'où vient TRPO
 
-L'estimateur de gradient de politique
+On ne peut pas dériver le rendement $`J(\theta)`$ directement : c'est une espérance sur des trajectoires dont la loi dépend elle-même de $`\theta`$. Le théorème du gradient de politique fournit à la place un estimateur calculable sur un lot d'échantillons :
 
 ```math
 \hat{g} = \hat{\mathbb{E}}_t\big[\nabla_\theta \log \pi_\theta(a_t \mid s_t)\,\hat{A}_t\big]
 ```
 
-est la dérivée de $`L^{PG} = \hat{\mathbb{E}}_t[\log\pi_\theta(a_t \mid s_t)\hat{A}_t]`$. Cette expression n'a pas d'interprétation propre : elle est construite pour que sa dérivée soit $`\hat g`$, et sa valeur ne mesure rien. L'optimiser sur plusieurs pas avec un seul lot de données n'a donc aucune justification, et conduit en pratique à des mises à jour de politique excessivement grandes.
+Comme les bibliothèques de différentiation automatique attendent un scalaire à dériver, on écrit
 
-On la remplace par l'**avantage de substitution** (*surrogate advantage*), noté $`L^{CPI}`$ dans le papier (d'après *conservative policy iteration*, Kakade & Langford 2002), obtenu par échantillonnage préférentiel des données de $`\pi_{\theta_{old}}`$ :
+```math
+L^{PG}(\theta) = \hat{\mathbb{E}}_t\big[\log\pi_\theta(a_t \mid s_t)\,\hat{A}_t\big]
+```
+
+dont la dérivée vaut $`\hat g`$ par construction. C'est un artifice de calcul, pas une mesure de performance : $`L^{PG}`$ n'est pas une estimation de $`J`$, et $`\hat A_t`$ y est traité comme une constante.
+
+Deux raisons interdisent d'enchaîner plusieurs pas dessus avec le même lot. D'abord, l'identité $`\nabla L^{PG} = \hat g`$ n'est valable qu'en $`\theta = \theta_{old}`$, la politique qui a produit les données ; passé le premier pas, plus rien ne corrige le fait qu'elles sont périmées. Ensuite, $`L^{PG}`$ n'est pas borné : le maximiser revient à pousser vers 1 la probabilité de toute action d'avantage positif, sans contrepoids. D'où les mises à jour excessivement grandes que constate le papier.
+
+On remplace donc $`L^{PG}`$ par l'**avantage de substitution** (*surrogate advantage*), noté $`L^{CPI}`$ dans le papier (d'après *conservative policy iteration*, Kakade & Langford 2002). Il s'obtient par **échantillonnage préférentiel** (*importance sampling*) : pour estimer une espérance sous une loi $`p`$ alors qu'on ne dispose que de tirages sous une loi $`q`$, on repondère chaque échantillon par le rapport des deux densités,
+
+```math
+\mathbb{E}_{x \sim p}\big[f(x)\big] = \mathbb{E}_{x \sim q}\left[\frac{p(x)}{q(x)}\,f(x)\right]
+```
+
+Ici $`p = \pi_\theta`$, la politique qu'on veut évaluer, et $`q = \pi_{\theta_{old}}`$, celle qui a collecté les données :
 
 ```math
 L^{CPI}(\theta) = \hat{\mathbb{E}}_t\big[r_t(\theta)\hat{A}_t\big],
@@ -56,8 +70,4 @@ Le premier terme du `min` est exactement $`L^{CPI}`$. Le second le plafonne : au
 
 ## Ce qu'il faut retenir
 
-PPO échange la garantie théorique de TRPO contre une contrainte implicite, portée par l'objectif lui-même. Le coût d'implémentation retombe à celui d'un gradient de politique classique augmenté de quelques lignes, l'optimisation reste du premier ordre, et aucune restriction d'architecture ne subsiste. C'est ce rapport entre simplicité, efficacité d'échantillonnage et temps de calcul qui a fait de PPO une méthode de référence, et qui l'y maintient.
-
-> Le détail (figures 1 et 2 du papier, clipping cas par cas, tableau comparatif des trois algorithmes, garanties perdues une par une) est dans [**De TRPO à PPO**](06-de-trpo-a-ppo.md).
-
-**Notation :** $`\delta`$ = rayon de la région de confiance (TRPO, 0,01) ; $`\epsilon`$ = clipping (PPO, 0,2). La [fiche de cours](fiche-policy-gradient.md) note les deux $`\epsilon`$.
+PPO échange la garantie théorique de TRPO contre une contrainte implicite, portée par l'objectif lui-même. Partir d'un gradient de politique classique pour arriver à PPO ne demande qu'une modification mineure du code : calculer le ratio, le clipper, prendre le minimum. Là où TRPO exigeait un gradient conjugué, des produits hessien-vecteur et une recherche linéaire, l'optimisation reste ici du premier ordre, et aucune restriction d'architecture ne subsiste. C'est ce rapport entre simplicité, efficacité d'échantillonnage et temps de calcul qui a fait de PPO une méthode de référence, et qui l'y maintient.
