@@ -26,12 +26,13 @@ Tous les extraits de code et numéros de ligne proviennent de `ray-project/ray` 
 |---|---|---|
 | — | [**Intuition : de REINFORCE à PPO**](docs/fiche-policy-gradient-intuition.md) | la porte d'entrée — 10 schémas, aucune démonstration, juste le défaut que chaque méthode répare. Tous les chiffres sont mesurés sur un PDM jouet dont les 2187 trajectoires sont énumérées |
 | — | [**Fiche : gradient de politique**](docs/fiche-policy-gradient.md) | le même parcours **avec les démonstrations**, de REINFORCE à GRPO. Vérifié par [`docs/verif/`](docs/verif/) : 50 assertions numériques + 22 symboliques |
-| 0 | [Résumé du papier PPO](docs/00-resume-papier-ppo.md) | la chaîne complète : $`\hat g`$ → substitut $`L^{CPI}`$ → contrainte TRPO → $`L^{CLIP}`$, ce que TRPO coûtait, et pourquoi « Algorithm**s** » au pluriel |
+| 0 | [Résumé du papier PPO](docs/00-resume-papier-ppo.md) | une page — la chaîne $`\hat g`$ → $`L^{CPI}`$ → contrainte TRPO → $`L^{CLIP}`$, et pourquoi « Algorithm**s** » au pluriel |
 | 1 | [Comprendre le papier](docs/01-comprendre-le-papier-ppo.md) | guide de lecture, équation (7) décortiquée cas par cas, six erreurs de lecture classiques, auto-test |
 | 2 | [PPO : papier vs RLlib](docs/02-ppo-papier-vs-rllib.md) | correspondance ligne à ligne, 8 écarts classés par gravité, config de reproduction |
 | 3 | [GAE : papier vs RLlib](docs/03-gae-papier-vs-rllib.md) | ce qu'est GAE, la récursion dans le code, `use_gae` mort et `use_critic` incohérent |
 | 4 | [PPO en multi-agent](docs/04-ppo-multiagent-rllib.md) | ce que le code fait avec N modules ; lu à travers la taxonomie à trois axes de [`marl-rllib-sota`](https://github.com/BNJ02/marl-rllib-sota) |
 | 5 | [**Mesures**](docs/05-mesures.md) | 30 runs, 3 graines : les écarts sont-ils réels ? Prédictions enregistrées **avant** les runs, trois d'entre elles infirmées |
+| 6 | [De TRPO à PPO](docs/06-de-trpo-a-ppo.md) | la version longue du n°0 : figures 1 et 2 du papier commentées, clipping cas par cas, tableau comparatif des trois algorithmes, garanties perdues une par une |
 
 Chaque document alterne formules LaTeX, extraits de code réels, et encarts **« En clair »** en langage courant. Le niveau technique n'est pas abaissé ; l'intuition est ajoutée à côté.
 

@@ -104,7 +104,7 @@ Prenons $`\epsilon = 0{,}2`$ et déroulons quatre cas concrets.
 
 **La Figure 2** est plus subtile et souvent survolée : on interpole linéairement entre $`\theta_{old}`$ et le $`\theta`$ obtenu après une itération de PPO, et on trace les quatre objectifs le long de ce segment. On voit $`L^{CPI}`$ (orange) monter sans fin, et $`L^{CLIP}`$ (rouge) atteindre un **maximum** puis redescendre. C'est la preuve visuelle que $`L^{CLIP}`$ est une borne inférieure qui **s'auto-limite**. Le maximum tombe à KL ≈ 0,02, ce qui est aussi l'ordre de grandeur du $`d_{targ}`$ de la variante KL — les deux mécanismes visent bien la même chose.
 
-> Cette figure est **reproduite et commentée courbe par courbe** dans [`00-resume-papier-ppo.md` §2.3](00-resume-papier-ppo.md#23-pourquoi-cest-une-borne-inférieure--la-figure-2-du-papier).
+> Cette figure est **reproduite et commentée courbe par courbe** dans [`06-de-trpo-a-ppo.md` §2.3](06-de-trpo-a-ppo.md#23-pourquoi-cest-une-borne-inférieure--la-figure-2-du-papier).
 
 ---
 
